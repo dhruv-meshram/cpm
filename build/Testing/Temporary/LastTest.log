@@ -1,0 +1,135 @@
+Start testing: May 31 00:59 IST
+----------------------------------------------------------
+7/10 Testing: ValidationPhase
+7/10 Test: ValidationPhase
+Command: "/home/dhruv/Documents/cpm/build/test_validation_phase"
+Directory: /home/dhruv/Documents/cpm/build
+"ValidationPhase" start time: May 31 00:59 IST
+Output:
+----------------------------------------------------------
+========================================
+CPM Engine Validation Phase Tests
+========================================
+
+✓ Validation: linear chain invariants
+✓ Validation: branching graph invariants
+✓ Validation: FS dependency semantics
+✓ Validation: SS dependency semantics
+✓ Validation: FF dependency semantics
+✓ Validation: SF dependency semantics
+✓ Validation: criticality and paths
+
+========================================
+Validation Phase Test Summary
+========================================
+Passed: 7
+Failed: 0
+Total:  7
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"ValidationPhase" end time: May 31 00:59 IST
+"ValidationPhase" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/10 Testing: ValidationHProjectDuration
+8/10 Test: ValidationHProjectDuration
+Command: "/home/dhruv/Documents/cpm/build/test_validation_H"
+Directory: /home/dhruv/Documents/cpm/build
+"ValidationHProjectDuration" start time: May 31 00:59 IST
+Output:
+----------------------------------------------------------
+========================================
+CPM Engine H-Tests: Project Duration
+========================================
+
+✓ H1: linear critical path duration
+✓ H2: parallel paths longest wins
+✓ H3: lag affects project duration
+✓ H4: zero-duration milestone handling
+
+========================================
+H-Tests: Project Duration Summary
+========================================
+Passed: 4
+Failed: 0
+Total:  4
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ValidationHProjectDuration" end time: May 31 00:59 IST
+"ValidationHProjectDuration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/10 Testing: ValidationLDateScheduling
+9/10 Test: ValidationLDateScheduling
+Command: "/home/dhruv/Documents/cpm/build/test_validation_L"
+Directory: /home/dhruv/Documents/cpm/build
+"ValidationLDateScheduling" start time: May 31 00:59 IST
+Output:
+----------------------------------------------------------
+========================================
+CPM Engine L-Tests: Date Scheduling
+========================================
+
+✓ L1a: project start offset
+✓ L1b: lag affects dates
+✓ L1c: shift project start shifts dates
+
+========================================
+L-Tests: Date Scheduling Summary
+========================================
+Passed: 3
+Failed: 0
+Total:  3
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"ValidationLDateScheduling" end time: May 31 00:59 IST
+"ValidationLDateScheduling" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/10 Testing: ValidationNRandomized
+10/10 Test: ValidationNRandomized
+Command: "/home/dhruv/Documents/cpm/build/test_validation_N"
+Directory: /home/dhruv/Documents/cpm/build
+"ValidationNRandomized" start time: May 31 00:59 IST
+Output:
+----------------------------------------------------------
+========================================
+CPM Engine N-Tests: Randomized / Large-Graph
+========================================
+
+✓ N1: small random graph invariants
+✓ N2: medium random graph stability
+✓ N3: seed reproducibility
+
+========================================
+N-Tests: Randomized / Large-Graph
+========================================
+Passed: 3
+Failed: 0
+Total:  3
+<end of output>
+Test time =   0.21 sec
+----------------------------------------------------------
+Test Passed.
+"ValidationNRandomized" end time: May 31 00:59 IST
+"ValidationNRandomized" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: May 31 00:59 IST
+
+H =   0.00 sec*proc
+
+L =   0.00 sec*proc
+
+N =   0.21 sec*proc
+
+phase =   0.01 sec*proc
+
+validation =   0.22 sec*proc
+

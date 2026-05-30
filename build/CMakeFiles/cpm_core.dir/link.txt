@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcpm_core.a CMakeFiles/cpm_core.dir/engine/src/graph_builder.cpp.o CMakeFiles/cpm_core.dir/engine/src/graph_validator.cpp.o CMakeFiles/cpm_core.dir/engine/src/topological_sort.cpp.o CMakeFiles/cpm_core.dir/engine/src/schedule_calculator.cpp.o CMakeFiles/cpm_core.dir/engine/src/float_calculator.cpp.o CMakeFiles/cpm_core.dir/engine/src/critical_path_finder.cpp.o
+/usr/bin/ranlib libcpm_core.a

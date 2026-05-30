@@ -1,0 +1,122 @@
+[
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/graph_builder.cpp.o -c /home/dhruv/Documents/cpm/engine/src/graph_builder.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/graph_builder.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/graph_builder.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/graph_validator.cpp.o -c /home/dhruv/Documents/cpm/engine/src/graph_validator.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/graph_validator.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/graph_validator.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/topological_sort.cpp.o -c /home/dhruv/Documents/cpm/engine/src/topological_sort.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/topological_sort.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/topological_sort.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/schedule_calculator.cpp.o -c /home/dhruv/Documents/cpm/engine/src/schedule_calculator.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/schedule_calculator.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/schedule_calculator.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/float_calculator.cpp.o -c /home/dhruv/Documents/cpm/engine/src/float_calculator.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/float_calculator.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/float_calculator.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/cpm_core.dir/engine/src/critical_path_finder.cpp.o -c /home/dhruv/Documents/cpm/engine/src/critical_path_finder.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/src/critical_path_finder.cpp",
+  "output": "CMakeFiles/cpm_core.dir/engine/src/critical_path_finder.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_graph_construction.dir/engine/tests/test_graph_construction.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_graph_construction.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_graph_construction.cpp",
+  "output": "CMakeFiles/test_graph_construction.dir/engine/tests/test_graph_construction.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_graph_validation.dir/engine/tests/test_graph_validation.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_graph_validation.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_graph_validation.cpp",
+  "output": "CMakeFiles/test_graph_validation.dir/engine/tests/test_graph_validation.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_topological_sort.dir/engine/tests/test_topological_sort.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_topological_sort.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_topological_sort.cpp",
+  "output": "CMakeFiles/test_topological_sort.dir/engine/tests/test_topological_sort.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_schedule_calculation.dir/engine/tests/test_schedule_calculation.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_schedule_calculation.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_schedule_calculation.cpp",
+  "output": "CMakeFiles/test_schedule_calculation.dir/engine/tests/test_schedule_calculation.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_float_calculation.dir/engine/tests/test_float_calculation.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_float_calculation.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_float_calculation.cpp",
+  "output": "CMakeFiles/test_float_calculation.dir/engine/tests/test_float_calculation.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_critical_path_finder.dir/engine/tests/test_critical_path_finder.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_critical_path_finder.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_critical_path_finder.cpp",
+  "output": "CMakeFiles/test_critical_path_finder.dir/engine/tests/test_critical_path_finder.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_validation_phase.dir/engine/tests/test_validation_phase.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_validation_phase.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_validation_phase.cpp",
+  "output": "CMakeFiles/test_validation_phase.dir/engine/tests/test_validation_phase.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_validation_H.dir/engine/tests/test_validation_H_project_duration.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_validation_H_project_duration.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_validation_H_project_duration.cpp",
+  "output": "CMakeFiles/test_validation_H.dir/engine/tests/test_validation_H_project_duration.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_validation_L.dir/engine/tests/test_validation_L_date_scheduling.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_validation_L_date_scheduling.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_validation_L_date_scheduling.cpp",
+  "output": "CMakeFiles/test_validation_L.dir/engine/tests/test_validation_L_date_scheduling.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/test_validation_N.dir/engine/tests/test_validation_N_randomized.cpp.o -c /home/dhruv/Documents/cpm/engine/tests/test_validation_N_randomized.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/tests/test_validation_N_randomized.cpp",
+  "output": "CMakeFiles/test_validation_N.dir/engine/tests/test_validation_N_randomized.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include -I/home/dhruv/Documents/cpm/engine/bench  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/benchmark_validation.dir/engine/bench/benchmark_main.cpp.o -c /home/dhruv/Documents/cpm/engine/bench/benchmark_main.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/bench/benchmark_main.cpp",
+  "output": "CMakeFiles/benchmark_validation.dir/engine/bench/benchmark_main.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include -I/home/dhruv/Documents/cpm/engine/bench  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/benchmark_validation.dir/engine/bench/graph_generator.cpp.o -c /home/dhruv/Documents/cpm/engine/bench/graph_generator.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/bench/graph_generator.cpp",
+  "output": "CMakeFiles/benchmark_validation.dir/engine/bench/graph_generator.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include -I/home/dhruv/Documents/cpm/engine/bench  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/benchmark_validation.dir/engine/bench/system_info.cpp.o -c /home/dhruv/Documents/cpm/engine/bench/system_info.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/bench/system_info.cpp",
+  "output": "CMakeFiles/benchmark_validation.dir/engine/bench/system_info.cpp.o"
+},
+{
+  "directory": "/home/dhruv/Documents/cpm/build",
+  "command": "/usr/bin/g++  -I/home/dhruv/Documents/cpm/engine/include -I/home/dhruv/Documents/cpm/engine/bench  -Wall -Wextra -Wpedantic -g -std=gnu++17 -o CMakeFiles/benchmark_validation.dir/engine/bench/metrics.cpp.o -c /home/dhruv/Documents/cpm/engine/bench/metrics.cpp",
+  "file": "/home/dhruv/Documents/cpm/engine/bench/metrics.cpp",
+  "output": "CMakeFiles/benchmark_validation.dir/engine/bench/metrics.cpp.o"
+}
+]
