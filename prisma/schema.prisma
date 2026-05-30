@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DependencyType {
+  FS
+  SS
+  FF
+  SF
+}
+
+enum LagUnit {
+  days
+  hours
+  weeks
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum WorkItemState {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  CANCELED
+}
+
+model Workspace {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  members     WorkspaceMember[]
+  projects    Project[]
+  labels      Label[]
+}
+
+model User {
+  id           String            @id @default(cuid())
+  name         String
+  email        String            @unique
+  avatar       String?
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  workspaceMemberships WorkspaceMember[]
+  projectMemberships    ProjectMember[]
+  comments              Comment[]
+  activityLogs          ActivityLog[]
+  workLogs              WorkLog[]
+  taskAssignees         TaskAssignee[]
+  votes                 Vote[]
+  taskSubscribers       TaskSubscriber[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        MemberRole @default(MEMBER)
+  createdAt   DateTime   @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+}
+
+model Project {
+  id          String      @id @default(cuid())
+  workspaceId String
+  name        String
+  identifier  String
+  description String?
+  startDate   DateTime?
+  targetDate  DateTime?
+  status      String      @default("active")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  members     ProjectMember[]
+  dependencies Dependency[]
+  cycles      Cycle[]
+  modules     Module[]
+  milestones  Milestone[]
+  releases    Release[]
+  layouts     GraphLayout[]
+  snapshots   CPMSnapshot[]
+
+  @@unique([workspaceId, identifier])
+  @@index([workspaceId])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      MemberRole @default(MEMBER)
+  createdAt DateTime   @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+model Task {
+  id              String         @id
+  projectId       String
+  title           String
+  description     String?
+  duration        Decimal        @db.Decimal(12, 4)
+  estimatedDays   Decimal?       @db.Decimal(12, 4)
+  startDate       DateTime?
+  endDate         DateTime?
+  state           WorkItemState   @default(BACKLOG)
+  priority        Int            @default(0)
+  parentTaskId    String?
+  isDraft         Boolean        @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  completedAt     DateTime?
+
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentTask      Task?          @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks      Task[]         @relation("TaskHierarchy")
+  outgoingDependencies Dependency[] @relation("DependencySuccessor")
+  incomingDependencies Dependency[] @relation("DependencyPredecessor")
+  assignees       TaskAssignee[]
+  comments        Comment[]
+  workLogs        WorkLog[]
+  taskCustomValues TaskCustomValue[]
+  subscriptions   TaskSubscriber[]
+  votes           Vote[]
+  nodePosition    NodePosition?
+
+  @@index([projectId])
+  @@index([parentTaskId])
+  @@index([deletedAt])
+}
+
+model Dependency {
+  id                String         @id @default(cuid())
+  projectId         String
+  predecessorTaskId  String
+  successorTaskId    String
+  dependencyType    DependencyType
+  lag               Decimal        @default(0) @db.Decimal(12, 4)
+  lagUnit           LagUnit        @default(days)
+  strength          Decimal        @default(1.0) @db.Decimal(4, 2)
+  createdAt         DateTime       @default(now())
+
+  project           Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  predecessorTask   Task           @relation("DependencyPredecessor", fields: [predecessorTaskId], references: [id], onDelete: Cascade)
+  successorTask     Task           @relation("DependencySuccessor", fields: [successorTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorTaskId, successorTaskId, dependencyType])
+  @@index([projectId])
+  @@index([predecessorTaskId])
+  @@index([successorTaskId])
+}
+
+model TaskAssignee {
+  taskId String
+  userId String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+model Label {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     TaskLabel[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  oldValue   Json?
+  newValue   Json?
+  userId     String?
+  timestamp  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model WorkLog {
+  id          String   @id @default(cuid())
+  taskId      String
+  userId      String
+  duration    Decimal  @db.Decimal(12, 4)
+  description String?
+  date        DateTime
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Cycle {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  ownerId     String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  targetDate  DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Release {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  version     String
+  releaseDate DateTime?
+  status      String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, version])
+}
+
+model GraphLayout {
+  id           String   @id @default(cuid())
+  projectId    String
+  layoutEngine String
+  version      String
+  generatedAt  DateTime @default(now())
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodePositions NodePosition[]
+
+  @@index([projectId])
+}
+
+model NodePosition {
+  id        String  @id @default(cuid())
+  layoutId  String  @unique
+  taskId    String  @unique
+  x         Float
+  y         Float
+  width     Float?
+  height    Float?
+
+  layout GraphLayout @relation(fields: [layoutId], references: [id], onDelete: Cascade)
+  task   Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model CPMSnapshot {
+  id              String   @id @default(cuid())
+  projectId       String
+  version         String
+  calculationTime DateTime @default(now())
+  projectDuration Decimal  @db.Decimal(12, 4)
+  criticalPath    Json
+  payload         Json
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, version])
+  @@index([calculationTime])
+}
+
+model TaskSubscriber {
+  taskId String
+  userId String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+model Vote {
+  id      String @id @default(cuid())
+  taskId  String
+  userId  String
+  type    String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}

@@ -1,1 +1,0 @@
-/usr/bin/g++  -Wall -Wextra -Wpedantic -g CMakeFiles/test_schedule_calculation.dir/engine/tests/test_schedule_calculation.cpp.o -o test_schedule_calculation  libcpm_core.a 

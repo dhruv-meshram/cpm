@@ -1,0 +1,2 @@
+-- Initial CPM database schema placeholder.
+-- Generate from prisma/schema.prisma once the Prisma CLI is available in the project.

@@ -168,6 +168,25 @@ int main() {
     result.timestamp = getTimestamp();
     result.sys_info = SystemInfo::getSysInfo();
 
+    // Optional filter: comma-separated list of scenario ids in env BENCHMARK_IDS
+    std::vector<std::string> filter_ids;
+    if (const char* env = std::getenv("BENCHMARK_IDS")) {
+        std::string s(env);
+        std::istringstream iss(s);
+        std::string token;
+        while (std::getline(iss, token, ',')) {
+            if (!token.empty()) filter_ids.push_back(token);
+        }
+        if (!filter_ids.empty()) {
+            std::cout << "Running filtered scenarios: ";
+            for (size_t i=0;i<filter_ids.size();++i) {
+                if (i) std::cout << ",";
+                std::cout << filter_ids[i];
+            }
+            std::cout << "\n";
+        }
+    }
+
     std::cout << "========================================\n"
               << "CPM Engine Comprehensive Benchmark Suite\n"
               << "========================================\n\n"
@@ -175,9 +194,14 @@ int main() {
               << "System: " << result.sys_info.cpu_model << "\n"
               << "Cores: " << result.sys_info.cpu_cores << "\n\n";
 
-    // Run all scenarios
+    // Run scenarios (all or filtered)
     int count = 0;
     for (const auto& scenario : BENCHMARK_SCENARIOS) {
+        if (!filter_ids.empty()) {
+            bool found = false;
+            for (const auto& id : filter_ids) if (id == scenario.id) { found = true; break; }
+            if (!found) continue;
+        }
         std::cout << "[" << ++count << "/" << BENCHMARK_SCENARIOS.size() << "] "
                   << scenario.id << ": " << scenario.description << "...";
         std::cout.flush();

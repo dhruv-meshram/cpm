@@ -2023,3 +2023,1748 @@ If using Graphviz.
 ```
 Input → CPM Output
 ```
+
+---
+
+# DATABASE
+
+## SCHEMA
+
+# 1. Workspace
+
+Plane is workspace-centric.
+
+## Entity: Workspace
+
+```
+Workspace
+```
+
+Fields:
+
+```
+id
+name
+slug
+description
+createdAt
+updatedAt
+```
+
+Relations:
+
+```
+Workspace
+ ├── Users
+ ├── Projects
+ ├── Labels
+ ├── Workflows
+ └── Custom Fields
+```
+
+---
+
+# 2. User System
+
+## Entity: User
+
+```
+User
+```
+
+Fields:
+
+```
+id
+name
+email
+avatar
+passwordHash
+createdAt
+updatedAt
+```
+
+---
+
+## Entity: WorkspaceMember
+
+```
+WorkspaceMember
+```
+
+Fields:
+
+```
+workspaceId
+userId
+role
+```
+
+Roles:
+
+```
+Owner
+Admin
+Member
+Viewer
+```
+
+---
+
+# 3. Projects
+
+Plane organizes work through projects.
+
+## Entity: Project
+
+```
+Project
+```
+
+Fields:
+
+```
+id
+workspaceId
+
+name
+identifier
+description
+
+startDate
+targetDate
+
+status
+
+createdAt
+updatedAt
+```
+
+Relations:
+
+```
+Project
+ ├── Tasks
+ ├── Dependencies
+ ├── Cycles
+ ├── Modules
+ ├── Milestones
+ ├── Releases
+ ├── Labels
+```
+
+---
+
+## Entity: ProjectMember
+
+```
+ProjectMember
+```
+
+Fields:
+
+```
+projectId
+userId
+role
+```
+
+---
+
+# 4. Work Items (Tasks)
+
+This is the most important entity.
+
+Plane calls them Work Items.
+
+## Entity: Task
+
+```
+Task
+```
+
+Core PM fields:
+
+```
+id
+projectId
+
+title
+description
+
+stateId
+priority
+
+startDate
+dueDate
+
+estimatePoints
+
+parentTaskId
+
+isDraft
+archivedAt
+
+createdAt
+updatedAt
+completedAt
+```
+
+---
+
+# 5. CPM Fields
+
+This is where your system differs from Plane.
+
+Add scheduling fields directly to Task.
+
+## CPM Scheduling Fields
+
+```
+duration
+
+es
+ef
+
+ls
+lf
+
+totalFloat
+freeFloat
+
+isCritical
+```
+
+---
+
+## Advanced CPM Fields
+
+Future:
+
+```
+calendarId
+
+constraintType
+constraintDate
+
+resourceLoad
+```
+
+---
+
+# 6. Dependencies
+
+This is the heart of CPM.
+
+## Entity: Dependency
+
+```
+Dependency
+```
+
+Fields:
+
+```
+id
+
+projectId
+
+predecessorTaskId
+successorTaskId
+
+dependencyType
+
+lag
+
+createdAt
+```
+
+Dependency types:
+
+```
+FS
+SS
+FF
+SF
+```
+
+Plane supports dependency relations conceptually.
+
+---
+
+# 7. Task Relationships
+
+Separate from scheduling dependencies.
+
+Plane supports:
+
+```
+Related
+Duplicate
+Implements
+Custom Relations
+```
+
+## Entity: TaskRelation
+
+```
+TaskRelation
+```
+
+Fields:
+
+```
+sourceTaskId
+targetTaskId
+
+relationType
+```
+
+Examples:
+
+```
+related_to
+duplicate
+implements
+tests
+blocks_business
+mitigates
+```
+
+---
+
+# 8. Work Item Types
+
+Plane supports custom work item types.
+
+## Entity: TaskType
+
+```
+TaskType
+```
+
+Examples:
+
+```
+Task
+Bug
+Feature
+Story
+Epic
+Initiative
+Milestone
+Risk
+```
+
+Fields:
+
+```
+name
+icon
+color
+```
+
+---
+
+# 9. States / Workflow
+
+Plane supports customizable workflows.
+
+## Entity: Workflow
+
+```
+Workflow
+```
+
+---
+
+## Entity: State
+
+```
+State
+```
+
+Examples:
+
+```
+Backlog
+Todo
+In Progress
+Review
+Done
+Cancelled
+```
+
+---
+
+## Entity: WorkflowTransition
+
+```
+WorkflowTransition
+```
+
+Fields:
+
+```
+fromState
+toState
+```
+
+---
+
+# 10. Cycles (Sprints)
+
+Plane supports cycles.
+
+## Entity: Cycle
+
+```
+Cycle
+```
+
+Fields:
+
+```
+name
+description
+
+startDate
+endDate
+
+ownerId
+```
+
+---
+
+# 11. Modules
+
+Plane supports modules.
+
+## Entity: Module
+
+```
+Module
+```
+
+Examples:
+
+```
+Frontend
+Backend
+Battery Pack
+Brake System
+```
+
+---
+
+# 12. Milestones
+
+## Entity: Milestone
+
+```
+Milestone
+```
+
+Fields:
+
+```
+name
+description
+targetDate
+```
+
+---
+
+# 13. Releases
+
+Plane recently made releases first-class entities.
+
+## Entity: Release
+
+```
+Release
+```
+
+Fields:
+
+```
+name
+version
+
+releaseDate
+
+status
+```
+
+---
+
+# 14. Labels
+
+Plane supports labels.
+
+## Entity: Label
+
+```
+Label
+```
+
+Fields:
+
+```
+name
+color
+```
+
+---
+
+# 15. Assignees
+
+Many-to-many.
+
+## Entity: TaskAssignee
+
+```
+TaskAssignee
+```
+
+Fields:
+
+```
+taskId
+userId
+```
+
+---
+
+# 16. Custom Fields
+
+Plane heavily supports custom properties.
+
+## Entity: CustomField
+
+```
+CustomField
+```
+
+Types:
+
+```
+Text
+Number
+Date
+Boolean
+Dropdown
+User
+```
+
+---
+
+## Entity: TaskCustomValue
+
+```
+TaskCustomValue
+```
+
+---
+
+# 17. Attachments
+
+Plane supports attachments.
+
+## Entity: Attachment
+
+```
+Attachment
+```
+
+Fields:
+
+```
+fileName
+url
+size
+uploadedBy
+```
+
+---
+
+# 18. Comments
+
+## Entity: Comment
+
+```
+Comment
+```
+
+Fields:
+
+```
+taskId
+userId
+content
+```
+
+---
+
+# 19. Activity History
+
+Plane tracks activity/audit history.
+
+## Entity: ActivityLog
+
+```
+ActivityLog
+```
+
+Fields:
+
+```
+entityType
+entityId
+
+action
+
+oldValue
+newValue
+
+userId
+timestamp
+```
+
+---
+
+# 20. Worklogs / Time Tracking
+
+Plane supports tracked time and worklogs.
+
+## Entity: WorkLog
+
+```
+WorkLog
+```
+
+Fields:
+
+```
+taskId
+userId
+
+duration
+
+description
+date
+```
+
+---
+
+# 21. Subscribers
+
+Plane now supports subscribers.
+
+## Entity: TaskSubscriber
+
+```
+TaskSubscriber
+```
+
+---
+
+# 22. Votes
+
+Plane now supports voting.
+
+## Entity: Vote
+
+```
+Vote
+```
+
+Fields:
+
+```
+taskId
+userId
+
+type
+```
+
+Types:
+
+```
+upvote
+downvote
+```
+
+---
+
+# 23. Graph Layout Storage
+
+Specific to your CPM platform.
+
+## Entity: GraphLayout
+
+```
+GraphLayout
+```
+
+Fields:
+
+```
+projectId
+
+layoutEngine
+
+version
+
+generatedAt
+```
+
+---
+
+## Entity: NodePosition
+
+```
+NodePosition
+```
+
+Fields:
+
+```
+taskId
+
+x
+y
+
+width
+height
+```
+
+---
+
+# 24. CPM Calculation Cache
+
+Useful later.
+
+## Entity: CPMSnapshot
+
+```
+CPMSnapshot
+```
+
+Stores:
+
+```
+projectDuration
+criticalPath
+calculationTime
+version
+```
+
+---
+
+During the **Database Phase**, you're not just creating tables. You're building the entire data layer that the backend, CPM engine, and frontend will rely on.
+
+For your CPM + Plane-like platform, the database phase should produce the following deliverables.
+
+# 1. Data Model Design
+
+Before writing any Prisma code, create an ERD (Entity Relationship Diagram).
+
+Define:
+
+```
+Workspace
+User
+Project
+Task
+Dependency
+State
+TaskType
+Label
+Comment
+...
+```
+
+For each entity:
+
+```
+Attributes
+Primary Key
+Foreign Keys
+Constraints
+Indexes
+```
+
+Deliverable:
+
+```
+database/ERD.png
+database/schema-design.md
+```
+
+---
+
+# 2. PostgreSQL Database Setup
+
+Create:
+
+```
+Development DB
+Testing DB
+Production DB
+```
+
+Configure:
+
+```
+Connection pooling
+Backups
+Environment variables
+```
+
+Deliverable:
+
+```
+DATABASE_SETUP.md
+```
+
+---
+
+# 3. Prisma Schema
+
+Create:
+
+```
+prisma/schema.prisma
+```
+
+Define all models.
+
+Example:
+
+```
+model Project {
+  id    String @id
+  name  String
+
+  tasks Task[]
+}
+```
+
+Deliverable:
+
+```
+schema.prisma
+```
+
+---
+
+# 4. Relationships
+
+Implement:
+
+```
+One-to-Many
+Many-to-Many
+Self References
+```
+
+Examples:
+
+```
+Project -> Tasks
+
+Task -> Dependencies
+
+Task -> Parent Task
+```
+
+Deliverable:
+
+```
+Validated relational model
+```
+
+---
+
+# 5. Database Constraints
+
+Prevent invalid data.
+
+Examples:
+
+```
+Unique Email
+Unique Workspace Slug
+
+No Duplicate Dependency
+
+No Duplicate Project Identifier
+```
+
+Deliverable:
+
+```
+Database-level integrity
+```
+
+---
+
+# 6. Index Design
+
+Very important.
+
+You'll frequently query:
+
+```
+Project Tasks
+Dependencies
+Comments
+Activity Logs
+```
+
+Add indexes.
+
+Examples:
+
+```
+projectId
+taskId
+assigneeId
+stateId
+```
+
+Deliverable:
+
+```
+Indexed schema
+```
+
+---
+
+# 7. Migration System
+
+Create:
+
+```
+Migration #1 Initial Schema
+Migration #2 Labels
+Migration #3 CPM Snapshots
+...
+```
+
+Deliverable:
+
+```
+prisma/migrations/
+```
+
+---
+
+# 8. Seed Data
+
+Create realistic sample data.
+
+Users:
+
+```
+Admin
+Project Manager
+Developer
+```
+
+Projects:
+
+```
+Software Project
+BAJA Project
+Construction Project
+```
+
+Deliverable:
+
+```
+prisma/seed.ts
+```
+
+---
+
+# 9. CPM-Specific Storage
+
+This is unique to your platform.
+
+Store:
+
+### Tasks
+
+```
+duration
+```
+
+### Dependencies
+
+```
+FS
+SS
+FF
+SF
+
+lag
+```
+
+### Snapshots
+
+```
+critical path
+project duration
+calculation version
+```
+
+Deliverable:
+
+```
+CPM-capable schema
+```
+
+---
+
+# 10. Graph Storage
+
+Store layout information separately.
+
+Entities:
+
+```
+GraphLayout
+NodePosition
+```
+
+Store:
+
+```
+x
+y
+width
+height
+```
+
+This avoids recomputing layouts constantly.
+
+Deliverable:
+
+```
+Persistent graph layout support
+```
+
+---
+
+# 11. Audit System
+
+Every major system needs this.
+
+Track:
+
+```
+Task Created
+Task Updated
+Dependency Added
+Dependency Deleted
+```
+
+Entity:
+
+```
+ActivityLog
+```
+
+Deliverable:
+
+```
+Complete audit trail
+```
+
+---
+
+# 12. Soft Delete Strategy
+
+Instead of deleting:
+
+```
+DELETEFROM tasks
+```
+
+Use:
+
+```
+deletedAt
+```
+
+This allows:
+
+```
+Restore
+Audit
+Recovery
+```
+
+Deliverable:
+
+```
+Soft delete architecture
+```
+
+---
+
+# 13. Permissions Model
+
+Define:
+
+```
+Owner
+Admin
+Member
+Viewer
+```
+
+Entities:
+
+```
+WorkspaceMember
+ProjectMember
+```
+
+Deliverable:
+
+```
+Role system
+```
+
+---
+
+# 14. Database Test Suite
+
+Create tests for:
+
+```
+Create Project
+Create Task
+Create Dependency
+Delete Task
+Cascade Rules
+Permission Rules
+```
+
+Deliverable:
+
+```
+Database integration tests
+```
+
+---
+
+# 15. Performance Testing
+
+Before leaving the database phase:
+
+Test:
+
+```
+100 tasks
+1000 tasks
+5000 tasks
+```
+
+Measure:
+
+```
+Project Load Time
+Dependency Query Time
+CPM Input Query Time
+```
+
+Deliverable:
+
+```
+Database benchmark report
+```
+
+---
+
+# 16. Repository Layer Design
+
+Don't let the frontend or CPM engine query Prisma directly.
+
+Create:
+
+```
+ProjectRepository
+TaskRepository
+DependencyRepository
+```
+
+Example:
+
+```
+projectRepository.getProject(id)
+
+taskRepository.createTask()
+
+dependencyRepository.getProjectDependencies()
+```
+
+Deliverable:
+
+```
+Data access layer
+```
+
+---
+
+# A. Database Validation Tests
+
+These answer:
+
+```
+Is the schema correct?
+Are constraints working?
+Can invalid data enter the system?
+```
+
+---
+
+## User Tests
+
+### A1. Create User
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### A2. Duplicate Email
+
+Expected:
+
+```
+Unique constraint violation
+```
+
+---
+
+### A3. Invalid User Data
+
+Expected:
+
+```
+Validation error
+```
+
+---
+
+# Workspace Tests
+
+### A4. Create Workspace
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### A5. Duplicate Slug
+
+Expected:
+
+```
+Unique constraint violation
+```
+
+---
+
+# Project Tests
+
+### A6. Create Project
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### A7. Delete Project
+
+Verify:
+
+```
+Tasks handled correctly
+Dependencies handled correctly
+```
+
+---
+
+# Task Tests
+
+### A8. Create Task
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### A9. Create Task Without Project
+
+Expected:
+
+```
+Foreign key violation
+```
+
+---
+
+### A10. Negative Duration
+
+Expected:
+
+```
+Validation error
+```
+
+---
+
+### A11. Parent Task Hierarchy
+
+Verify:
+
+```
+Parent-child relation works
+```
+
+---
+
+# Dependency Tests
+
+### A12. Create Dependency
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### A13. Dependency With Missing Task
+
+Expected:
+
+```
+Foreign key violation
+```
+
+---
+
+### A14. Duplicate Dependency
+
+Expected:
+
+```
+Rejected
+```
+
+---
+
+### A15. Self Dependency
+
+```
+A → A
+```
+
+Expected:
+
+```
+Rejected
+```
+
+---
+
+# Permission Tests
+
+### A16. Viewer Creates Task
+
+Expected:
+
+```
+Permission denied
+```
+
+---
+
+### A17. Admin Creates Task
+
+Expected:
+
+```
+Success
+```
+
+---
+
+# Soft Delete Tests
+
+### A18. Soft Delete Task
+
+Expected:
+
+```
+deletedAt populated
+```
+
+---
+
+### A19. Query Active Tasks
+
+Expected:
+
+```
+Deleted tasks excluded
+```
+
+---
+
+# Activity Log Tests
+
+### A20. Update Task
+
+Expected:
+
+```
+Activity entry created
+```
+
+---
+
+# B. CPM Data Validation Tests
+
+Verify database supports CPM correctly.
+
+---
+
+### B1. Store Duration
+
+Expected:
+
+```
+Correct persistence
+```
+
+---
+
+### B2. Store Dependency Type
+
+```
+FS
+SS
+FF
+SF
+```
+
+Expected:
+
+```
+Correct retrieval
+```
+
+---
+
+### B3. Store Lag
+
+Expected:
+
+```
+Correct persistence
+```
+
+---
+
+### B4. Store CPM Snapshot
+
+Expected:
+
+```
+Critical path persisted
+```
+
+---
+
+# C. Graph Storage Validation
+
+---
+
+### C1. Save Layout
+
+Expected:
+
+```
+Coordinates stored
+```
+
+---
+
+### C2. Retrieve Layout
+
+Expected:
+
+```
+Coordinates restored
+```
+
+---
+
+# D. Migration Tests
+
+---
+
+### D1. Fresh Database Migration
+
+Expected:
+
+```
+Success
+```
+
+---
+
+### D2. Upgrade Migration
+
+Expected:
+
+```
+No data loss
+```
+
+---
+
+### D3. Seed Script
+
+Expected:
+
+```
+Sample data inserted
+```
+
+---
+
+# Database Benchmark Tests
+
+These answer:
+
+```
+Can the database scale?
+Will CPM calculations get data quickly?
+```
+
+---
+
+# E. CRUD Benchmarks
+
+---
+
+### E1. Create 100 Tasks
+
+Measure:
+
+```
+Insert time
+```
+
+---
+
+### E2. Create 1000 Tasks
+
+Measure:
+
+```
+Insert time
+```
+
+---
+
+### E3. Create 5000 Tasks
+
+Measure:
+
+```
+Insert time
+```
+
+---
+
+# F. Project Load Benchmarks
+
+---
+
+### F1. Load Project
+
+```
+100 Tasks
+```
+
+Measure:
+
+```
+Query latency
+```
+
+---
+
+### F2. Load Project
+
+```
+1000 Tasks
+```
+
+Measure:
+
+```
+Query latency
+```
+
+---
+
+### F3. Load Project
+
+```
+5000 Tasks
+```
+
+Measure:
+
+```
+Query latency
+```
+
+---
+
+# G. Dependency Benchmarks
+
+---
+
+### G1. Load 1000 Dependencies
+
+Measure:
+
+```
+Query speed
+```
+
+---
+
+### G2. Load 10000 Dependencies
+
+Measure:
+
+```
+Query speed
+```
+
+---
+
+# H. CPM Input Generation Benchmark
+
+This is critical.
+
+Measure:
+
+```
+Database
+↓
+Task Objects
+↓
+Dependency Objects
+↓
+CPM Input JSON
+```
+
+for:
+
+```
+100
+1000
+5000
+```
+
+tasks.
+
+---
+
+# I. Graph Query Benchmark
+
+Measure:
+
+```
+Task + Dependency retrieval
+```
+
+for graph rendering.
+
+---
+
+# J. Concurrent User Benchmark
+
+---
+
+### J1. 10 Concurrent Users
+
+Measure:
+
+```
+Latency
+```
+
+---
+
+### J2. 50 Concurrent Users
+
+Measure:
+
+```
+Latency
+```
+
+---
+
+### J3. 100 Concurrent Users
+
+Measure:
+
+```
+Latency
+```
+
+---
+
+# K. Index Validation Benchmark
+
+Before indexes:
+
+```
+Measure query
+```
+
+After indexes:
+
+```
+Measure query
+```
+
+Verify improvement.

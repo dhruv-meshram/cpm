@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CPM Engine I/O Schema v1.0.0",
+  "type": "object",
+  "definitions": {
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "duration": { "type": "number" },
+        "metadata": { "type": ["object","string"], "description": "optional integrator metadata" }
+      },
+      "required": ["id","duration"]
+    },
+    "dependency": {
+      "type": "object",
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "lag": { "type": "number" }
+      },
+      "required": ["from","to"]
+    }
+  },
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/task" }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/dependency" }
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "projectDuration": { "type": "number" },
+        "criticalPath": { "type": "array", "items": { "type": "string" } },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "earliest_start": { "type": "number" },
+              "earliest_finish": { "type": "number" },
+              "latest_start": { "type": "number" },
+              "latest_finish": { "type": "number" },
+              "float_time": { "type": "number" }
+            },
+            "required": ["id","earliest_start","earliest_finish","latest_start","latest_finish","float_time"]
+          }
+        }
+      }
+    }
+  },
+  "required": ["tasks","dependencies"]
+}

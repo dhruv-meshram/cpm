@@ -1,0 +1,53 @@
+# Build artifacts
+build/
+dist/
+*.o
+*.a
+*.so
+*.exe
+*.dll
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Dependencies
+node_modules/
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*~
+
+# OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db

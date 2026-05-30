@@ -1,1 +1,0 @@
-/usr/bin/g++  -Wall -Wextra -Wpedantic -g CMakeFiles/test_topological_sort.dir/engine/tests/test_topological_sort.cpp.o -o test_topological_sort  libcpm_core.a 

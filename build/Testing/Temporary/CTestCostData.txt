@@ -1,5 +1,0 @@
-ValidationPhase 1 0.00711701
-ValidationHProjectDuration 1 0.00448879
-ValidationLDateScheduling 1 0.00402239
-ValidationNRandomized 1 0.208342
----
