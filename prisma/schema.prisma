@@ -142,6 +142,7 @@ model Task {
   project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parentTask      Task?          @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
   childTasks      Task[]         @relation("TaskHierarchy")
+  taskLabels      TaskLabel[]
   outgoingDependencies Dependency[] @relation("DependencySuccessor")
   incomingDependencies Dependency[] @relation("DependencyPredecessor")
   assignees       TaskAssignee[]
@@ -372,4 +373,15 @@ model Vote {
 
   @@unique([taskId, userId])
   @@index([userId])
+}
+
+model TaskCustomValue {
+  id        String @id @default(cuid())
+  taskId    String
+  key       String
+  value     Json?
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }

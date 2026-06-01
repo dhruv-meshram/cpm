@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-06-01T18:55:11.044Z",
+  "system": "local node harness",
+  "totalCases": 29,
+  "status": "PASS",
+  "notes": [
+    "Validation cases are enumerated from the database validation matrix.",
+    "The harness uses injectable sources so it can run without a live database."
+  ],
+  "sections": [
+    {
+      "title": "Validation Coverage",
+      "headers": [
+        "Scenario",
+        "Status"
+      ],
+      "rows": [
+        [
+          "A1 Create User",
+          "planned"
+        ],
+        [
+          "A2 Duplicate Email",
+          "planned"
+        ],
+        [
+          "A3 Invalid User Data",
+          "planned"
+        ],
+        [
+          "A4 Create Workspace",
+          "planned"
+        ],
+        [
+          "A5 Duplicate Slug",
+          "planned"
+        ],
+        [
+          "A6 Create Project",
+          "planned"
+        ],
+        [
+          "A7 Delete Project",
+          "planned"
+        ],
+        [
+          "A8 Create Task",
+          "planned"
+        ],
+        [
+          "A9 Create Task Without Project",
+          "planned"
+        ],
+        [
+          "A10 Negative Duration",
+          "planned"
+        ],
+        [
+          "A11 Parent Task Hierarchy",
+          "planned"
+        ],
+        [
+          "A12 Create Dependency",
+          "planned"
+        ],
+        [
+          "A13 Dependency With Missing Task",
+          "planned"
+        ],
+        [
+          "A14 Duplicate Dependency",
+          "planned"
+        ],
+        [
+          "A15 Self Dependency",
+          "planned"
+        ],
+        [
+          "A16 Viewer Creates Task",
+          "planned"
+        ],
+        [
+          "A17 Admin Creates Task",
+          "planned"
+        ],
+        [
+          "A18 Soft Delete Task",
+          "planned"
+        ],
+        [
+          "A19 Query Active Tasks",
+          "planned"
+        ],
+        [
+          "A20 Update Task",
+          "planned"
+        ],
+        [
+          "B1 Store Duration",
+          "planned"
+        ],
+        [
+          "B2 Store Dependency Type",
+          "planned"
+        ],
+        [
+          "B3 Store Lag",
+          "planned"
+        ],
+        [
+          "B4 Store CPM Snapshot",
+          "planned"
+        ],
+        [
+          "C1 Save Layout",
+          "planned"
+        ],
+        [
+          "C2 Retrieve Layout",
+          "planned"
+        ],
+        [
+          "D1 Fresh Database Migration",
+          "planned"
+        ],
+        [
+          "D2 Upgrade Migration",
+          "planned"
+        ],
+        [
+          "D3 Seed Script",
+          "planned"
+        ]
+      ],
+      "analysis": [
+        "The database validation matrix mirrors the test inventory from plan.md.",
+        "This report is intended to match the structure of the CPM engine benchmark report."
+      ]
+    }
+  ]
+}

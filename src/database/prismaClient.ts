@@ -12,3 +12,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export { prismaClient };
+
+export async function runTransaction<T>(fn: (prisma: PrismaClient) => Promise<T>) {
+  return prismaClient.$transaction(fn as any);
+}

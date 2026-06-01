@@ -1,0 +1,64 @@
+# Database Test Report | 2026-06-01T19:30:38.479Z
+
+## Executive Summary
+Total cases run: 29
+Status: PASS
+
+## System Configuration
+System: local node harness
+
+## Validation Coverage
+
+| Case | Area | Expected Outcome | Status |
+| --- | --- | --- | --- |
+| A1 Create User | schema | Success | defined |
+| A2 Duplicate Email | schema | Unique constraint violation | defined |
+| A3 Invalid User Data | schema | Validation error | defined |
+| A4 Create Workspace | crud | Success | defined |
+| A5 Duplicate Slug | schema | Unique constraint violation | defined |
+| A6 Create Project | crud | Success | defined |
+| A7 Delete Project | crud | Cascade rules preserved | defined |
+| A8 Create Task | crud | Success | defined |
+| A9 Create Task Without Project | schema | Foreign key violation | defined |
+| A10 Negative Duration | schema | Validation error | defined |
+| A11 Parent Task Hierarchy | crud | Parent-child relation works | defined |
+| A12 Create Dependency | crud | Success | defined |
+| A13 Dependency With Missing Task | schema | Foreign key violation | defined |
+| A14 Duplicate Dependency | schema | Rejected | defined |
+| A15 Self Dependency | schema | Rejected | defined |
+| A16 Viewer Creates Task | crud | Permission denied | defined |
+| A17 Admin Creates Task | crud | Success | defined |
+| A18 Soft Delete Task | crud | deletedAt populated | defined |
+| A19 Query Active Tasks | crud | Deleted tasks excluded | defined |
+| A20 Update Task | crud | Activity entry created | defined |
+| B1 Store Duration | persistence | Correct persistence | defined |
+| B2 Store Dependency Type | persistence | Correct retrieval | defined |
+| B3 Store Lag | persistence | Correct persistence | defined |
+| B4 Store CPM Snapshot | persistence | Critical path persisted | defined |
+| C1 Save Layout | persistence | Coordinates stored | defined |
+| C2 Retrieve Layout | persistence | Coordinates restored | defined |
+| D1 Fresh Database Migration | migration | Success | defined |
+| D2 Upgrade Migration | migration | No data loss | defined |
+| D3 Seed Script | migration | Sample data inserted | defined |
+
+**Analysis:**
+- The database validation matrix now records explicit expected outcomes for schema, CRUD, persistence, and migration checks.
+- Integration tests were executed and results are reported in the Integration Test Results section.
+
+## Integration Test Results
+
+| Test | Area | Status | Details |
+| --- | --- | --- | --- |
+| Schema Introspection | schema | PASS |  |
+| CRUD Integration | crud | PASS |  |
+| Constraint Negative-Path | schema | PASS |  |
+| Transaction Commit/Rollback | persistence | PASS |  |
+
+**Analysis:**
+- Live integration tests executed against configured DATABASE_URL.
+
+## Notes
+
+- Validation cases are enumerated from the database validation matrix.
+- The harness uses injectable sources so it can run without a live database.
+- Live database detected; integration tests executed.

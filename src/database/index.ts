@@ -4,4 +4,9 @@ export {
   listProjectDependencies,
   listProjectTasks,
   saveCpmSnapshot,
+  createProject,
+  createTask,
+  updateTask,
+  deleteTask,
 } from './repositories';
+export { runTransaction } from './prismaClient';
