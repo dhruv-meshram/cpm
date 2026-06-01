@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-06-01T19:44:27.279Z",
+  "preset": "small",
+  "presetSpec": {
+    "workspaceCount": 1,
+    "projectCount": 1,
+    "taskCount": 100,
+    "dependencyDensity": 0.5,
+    "concurrency": 5
+  },
+  "metrics": {
+    "inserts": {
+      "total": 100,
+      "durationMs": 26.89450400000004,
+      "insertsPerSec": 3718.231799329701
+    },
+    "reads": {
+      "total": 103,
+      "durationMs": 6.926910000000021,
+      "qps": 14869.545006359212
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# DB Volume Report medium
+
+{
+  "timestamp": "2026-06-01T19:44:05.787Z",
+  "preset": "medium",
+  "presetSpec": {
+    "workspaceCount": 1,
+    "projectCount": 2,
+    "taskCount": 1000,
+    "dependencyDensity": 0.2,
+    "concurrency": 10
+  },
+  "metrics": {
+    "inserts": {
+      "total": 1000,
+      "durationMs": 153.08573,
+      "insertsPerSec": 6532.287496685681
+    },
+    "reads": {
+      "total": 1103,
+      "durationMs": 7.4566200000000435,
+      "qps": 147922.2489546193
+    }
+  }
+}

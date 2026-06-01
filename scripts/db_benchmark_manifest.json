@@ -1,0 +1,36 @@
+{
+  "name": "cpm-database-benchmarks",
+  "version": "1.0.0",
+  "presets": {
+    "small": {
+      "workspaceCount": 1,
+      "projectCount": 1,
+      "taskCount": 100,
+      "dependencyDensity": 0.5,
+      "concurrency": 5
+    },
+    "medium": {
+      "workspaceCount": 1,
+      "projectCount": 2,
+      "taskCount": 1000,
+      "dependencyDensity": 0.2,
+      "concurrency": 10
+    },
+    "large": {
+      "workspaceCount": 2,
+      "projectCount": 5,
+      "taskCount": 10000,
+      "dependencyDensity": 0.05,
+      "concurrency": 20
+    }
+  },
+  "tests": [
+    { "id": "DB-VAL-001", "name": "Schema Validation", "area": "validation", "command": "db:test:schema" },
+    { "id": "DB-CRUD-001", "name": "CRUD Integration", "area": "crud", "command": "db:test:crud" },
+    { "id": "DB-VAL-002", "name": "Constraint Negative-Path", "area": "validation", "command": "db:test:constraints" },
+    { "id": "DB-PER-001", "name": "Transaction Commit/Rollback", "area": "persistence", "command": "db:test:transaction" },
+    { "id": "DB-VOL-001", "name": "Volume Insert (small)", "area": "volume", "command": "db:test:volume:small" },
+    { "id": "DB-VOL-002", "name": "Volume Insert (medium)", "area": "volume", "command": "db:test:volume:medium" },
+    { "id": "DB-VOL-003", "name": "Volume Insert (large)", "area": "volume", "command": "db:test:volume:large" }
+  ]
+}

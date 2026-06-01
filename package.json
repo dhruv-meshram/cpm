@@ -14,7 +14,13 @@
     "db:test:crud": "tsx database/tests/crud.integration.test.ts",
     "db:test:constraints": "tsx database/tests/constraints.test.ts",
     "db:test:transaction": "tsx database/tests/transaction.test.ts",
-    "db:test:benchmark": "tsx database/tests/benchmark.test.ts"
+    "db:test:benchmark": "tsx database/tests/benchmark.test.ts",
+    "db:bench:run": "tsx scripts/db_benchmark_runner.ts",
+    "db:bench:aggregate": "tsx scripts/aggregate_reports.ts"
+    ,
+    "db:test:volume:small": "tsx scripts/db_volume_benchmark.ts small",
+    "db:test:volume:medium": "tsx scripts/db_volume_benchmark.ts medium",
+    "db:test:volume:large": "tsx scripts/db_volume_benchmark.ts large"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
