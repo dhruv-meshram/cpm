@@ -17,6 +17,12 @@ export async function getProjectByIdentifier(workspaceId: string, identifier: st
   });
 }
 
+export async function getProject(projectId: string) {
+  return prismaClient.project.findUnique({
+    where: { id: projectId },
+  });
+}
+
 export async function listProjectTasks(projectId: string) {
   return prismaClient.task.findMany({
     where: { projectId, deletedAt: null },
@@ -72,4 +78,26 @@ export async function updateTask(taskId: string, updates: Partial<{ title: strin
 
 export async function deleteTask(taskId: string) {
   return prismaClient.task.delete({ where: { id: taskId } });
+}
+
+export async function createDependency(data: {
+  projectId: string;
+  predecessorTaskId: string;
+  successorTaskId: string;
+  dependencyType?: 'FS' | 'SS' | 'FF' | 'SF';
+  lag?: number;
+}) {
+  return prismaClient.dependency.create({
+    data: {
+      projectId: data.projectId,
+      predecessorTaskId: data.predecessorTaskId,
+      successorTaskId: data.successorTaskId,
+      dependencyType: data.dependencyType ?? 'FS',
+      lag: data.lag ?? 0,
+    },
+  });
+}
+
+export async function deleteDependency(dependencyId: string) {
+  return prismaClient.dependency.delete({ where: { id: dependencyId } });
 }

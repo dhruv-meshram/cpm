@@ -1,6 +1,32 @@
 {
   "name": "cpm-database-benchmarks",
   "version": "1.0.0",
+  "profiles": {
+    "default": {
+      "description": "Fast profile for CI and local development",
+      "includeTags": ["default"]
+    },
+    "full": {
+      "description": "Complete profile including heavy stress scenarios",
+      "includeTags": ["default", "stress"]
+    }
+  },
+  "matrix": {
+    "requiredOperations": [
+      "task_insert_throughput",
+      "dependency_insert_throughput",
+      "graph_load_latency",
+      "dependency_traversal_latency",
+      "cpm_input_generation_latency",
+      "snapshot_write_latency",
+      "snapshot_read_latency"
+    ],
+    "requiredComparisons": [
+      "seeded_vs_synthetic",
+      "shallow_vs_dense",
+      "index_path_comparison"
+    ]
+  },
   "presets": {
     "small": {
       "workspaceCount": 1,

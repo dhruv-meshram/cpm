@@ -1,0 +1,1724 @@
+[
+  {
+    "dir": "database_benchmark_2026-05-30T21-22-22-132Z",
+    "report": {
+      "timestamp": "2026-05-30T21:22:22.132Z",
+      "system": "local node harness",
+      "totalCases": 30,
+      "status": "PASS",
+      "notes": [
+        "Benchmark cases are enumerated from the database benchmark matrix.",
+        "The harness uses injectable sources so it can run without a live database."
+      ],
+      "sections": [
+        {
+          "title": "Benchmark Coverage",
+          "headers": [
+            "Scenario",
+            "Status"
+          ],
+          "rows": [
+            [
+              "A1 Small Graph",
+              "planned"
+            ],
+            [
+              "A2 Medium Graph",
+              "planned"
+            ],
+            [
+              "A3 Large Graph",
+              "planned"
+            ],
+            [
+              "A4 Very Large Graph",
+              "planned"
+            ],
+            [
+              "A5 Extreme Graph",
+              "planned"
+            ],
+            [
+              "B1 Long Chain",
+              "planned"
+            ],
+            [
+              "B2 Wide Graph",
+              "planned"
+            ],
+            [
+              "B3 Diamond Cascade",
+              "planned"
+            ],
+            [
+              "B4 Multi-Level Tree",
+              "planned"
+            ],
+            [
+              "B5 Dense DAG",
+              "planned"
+            ],
+            [
+              "C1 Large Valid DAG",
+              "planned"
+            ],
+            [
+              "C2 Large Graph With Hidden Cycle",
+              "planned"
+            ],
+            [
+              "C3 Duplicate Dependency Explosion",
+              "planned"
+            ],
+            [
+              "D1 Single Critical Path",
+              "planned"
+            ],
+            [
+              "D2 Multiple Critical Paths",
+              "planned"
+            ],
+            [
+              "D3 Highly Parallel Graph",
+              "planned"
+            ],
+            [
+              "E1 100 Nodes",
+              "planned"
+            ],
+            [
+              "E2 1000 Nodes",
+              "planned"
+            ],
+            [
+              "E3 5000 Nodes",
+              "planned"
+            ],
+            [
+              "E4 10000 Nodes",
+              "planned"
+            ],
+            [
+              "F1 Construction Project",
+              "planned"
+            ],
+            [
+              "F2 Software Development Project",
+              "planned"
+            ],
+            [
+              "F3 BAJA Vehicle Project",
+              "planned"
+            ],
+            [
+              "G1 Single Run",
+              "planned"
+            ],
+            [
+              "G2 100 Consecutive Runs",
+              "planned"
+            ],
+            [
+              "G3 1000 Consecutive Runs",
+              "planned"
+            ],
+            [
+              "H1 Add Task",
+              "planned"
+            ],
+            [
+              "H2 Remove Task",
+              "planned"
+            ],
+            [
+              "H3 Change Duration",
+              "planned"
+            ],
+            [
+              "I1 CPM Only",
+              "planned"
+            ]
+          ],
+          "analysis": [
+            "The benchmark matrix mirrors the full test inventory from plan.md.",
+            "Report output is intentionally similar to the CPM engine benchmark report structure."
+          ]
+        },
+        {
+          "title": "Measured Harness Result",
+          "headers": [
+            "Project",
+            "Tasks",
+            "Dependencies",
+            "Duration (ms)"
+          ],
+          "rows": [
+            [
+              "missing-project",
+              0,
+              0,
+              "0.037"
+            ]
+          ],
+          "analysis": [
+            "This run uses an injectable mock source, so the runtime is a harness smoke test rather than a live database benchmark."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "dir": "database_matrix_2026-06-02T07-20-24-704Z",
+    "report": {
+      "timestamp": "2026-06-02T07:20:24.704Z",
+      "profile": "full",
+      "system": "local prisma benchmark harness",
+      "matrixCoverage": {
+        "requiredOperations": [
+          "task_insert_throughput",
+          "dependency_insert_throughput",
+          "graph_load_latency",
+          "dependency_traversal_latency",
+          "cpm_input_generation_latency",
+          "snapshot_write_latency",
+          "snapshot_read_latency"
+        ],
+        "executedOperations": [
+          "task_insert_throughput",
+          "dependency_insert_throughput",
+          "graph_load_latency",
+          "dependency_traversal_latency",
+          "cpm_input_generation_latency",
+          "snapshot_write_latency",
+          "snapshot_read_latency",
+          "unindexed_graph_load_latency"
+        ],
+        "missingOperations": [],
+        "requiredComparisons": [
+          "seeded_vs_synthetic",
+          "shallow_vs_dense",
+          "index_path_comparison"
+        ],
+        "executedComparisons": [
+          "seeded_vs_synthetic",
+          "shallow_vs_dense",
+          "index_path_comparison"
+        ],
+        "missingComparisons": []
+      },
+      "scenarios": [
+        {
+          "scenarioId": "SCN-100-SYNTH-SHALLOW",
+          "name": "100 tasks synthetic shallow DAG",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "task_insert_throughput",
+              "durationMs": 15.002947000000006,
+              "value": 6665.357146166014,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 15.447275999999988,
+              "value": 4466.806963247116,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "graph_load_latency",
+              "durationMs": 10.23521599999998,
+              "value": 169,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_traversal_latency",
+              "durationMs": 0.023632999999961157,
+              "value": 7,
+              "unit": "nodes_traversed"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "cpm_input_generation_latency",
+              "durationMs": 11.102013999999997,
+              "value": 100,
+              "unit": "tasks_serialized"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_write_latency",
+              "durationMs": 5.284598999999957,
+              "value": 25,
+              "unit": "snapshot_id_len"
+            },
+            {
+              "scenarioId": "SCN-100-SYNTH-SHALLOW",
+              "name": "100 tasks synthetic shallow DAG",
+              "taskCount": 100,
+              "density": 0.08,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_read_latency",
+              "durationMs": 1.869397000000049,
+              "value": 1,
+              "unit": "record_found"
+            }
+          ]
+        },
+        {
+          "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+          "name": "1000 tasks synthetic shallow DAG",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "task_insert_throughput",
+              "durationMs": 63.712800000000016,
+              "value": 15695.433256739616,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 31.50948699999998,
+              "value": 10282.617422492476,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "graph_load_latency",
+              "durationMs": 13.817331999999965,
+              "value": 1324,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_traversal_latency",
+              "durationMs": 0.01264200000002802,
+              "value": 1,
+              "unit": "nodes_traversed"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "cpm_input_generation_latency",
+              "durationMs": 18.624614000000008,
+              "value": 1000,
+              "unit": "tasks_serialized"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_write_latency",
+              "durationMs": 3.7592750000000024,
+              "value": 25,
+              "unit": "snapshot_id_len"
+            },
+            {
+              "scenarioId": "SCN-1000-SYNTH-SHALLOW",
+              "name": "1000 tasks synthetic shallow DAG",
+              "taskCount": 1000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_read_latency",
+              "durationMs": 1.6304959999999937,
+              "value": 1,
+              "unit": "record_found"
+            }
+          ]
+        },
+        {
+          "scenarioId": "SCN-5000-SYNTH-DENSE",
+          "name": "5000 tasks synthetic dense DAG",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "task_insert_throughput",
+              "durationMs": 278.129235,
+              "value": 17977.254350841617,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 1110.1545409999999,
+              "value": 10849.840770051855,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "graph_load_latency",
+              "durationMs": 129.57287199999996,
+              "value": 17045,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "dependency_traversal_latency",
+              "durationMs": 9.150184000000081,
+              "value": 4475,
+              "unit": "nodes_traversed"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "cpm_input_generation_latency",
+              "durationMs": 145.47958100000005,
+              "value": 5000,
+              "unit": "tasks_serialized"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "snapshot_write_latency",
+              "durationMs": 13.431543000000147,
+              "value": 25,
+              "unit": "snapshot_id_len"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-DENSE",
+              "name": "5000 tasks synthetic dense DAG",
+              "taskCount": 5000,
+              "density": 0.1,
+              "dataSource": "synthetic",
+              "shape": "dense_dag",
+              "operation": "snapshot_read_latency",
+              "durationMs": 3.5478330000000824,
+              "value": 1,
+              "unit": "record_found"
+            }
+          ]
+        },
+        {
+          "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+          "name": "1000 tasks seeded shallow DAG",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "task_insert_throughput",
+              "durationMs": 55.29953000000023,
+              "value": 18083.3363321532,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 87.84195799999998,
+              "value": 11372.69731624152,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "graph_load_latency",
+              "durationMs": 16.142643000000135,
+              "value": 1999,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "dependency_traversal_latency",
+              "durationMs": 0.341305000000375,
+              "value": 1000,
+              "unit": "nodes_traversed"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "cpm_input_generation_latency",
+              "durationMs": 20.96832799999993,
+              "value": 1000,
+              "unit": "tasks_serialized"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "snapshot_write_latency",
+              "durationMs": 1.892631000000165,
+              "value": 25,
+              "unit": "snapshot_id_len"
+            },
+            {
+              "scenarioId": "SCN-1000-SEEDED-SHALLOW",
+              "name": "1000 tasks seeded shallow DAG",
+              "taskCount": 1000,
+              "density": 0.02,
+              "dataSource": "seeded",
+              "shape": "chain",
+              "operation": "snapshot_read_latency",
+              "durationMs": 1.1397680000000037,
+              "value": 1,
+              "unit": "record_found"
+            }
+          ]
+        },
+        {
+          "scenarioId": "SCN-10000-SYNTH-STRESS",
+          "name": "10000 tasks synthetic stress DAG",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "task_insert_throughput",
+              "durationMs": 459.15248999999994,
+              "value": 21779.25682162804,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 268.80781400000023,
+              "value": 11100.867774625023,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "graph_load_latency",
+              "durationMs": 140.32317999999987,
+              "value": 12984,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_traversal_latency",
+              "durationMs": 0.005177000000003318,
+              "value": 1,
+              "unit": "nodes_traversed"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "cpm_input_generation_latency",
+              "durationMs": 133.18730400000004,
+              "value": 10000,
+              "unit": "tasks_serialized"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_write_latency",
+              "durationMs": 3.7360859999998866,
+              "value": 25,
+              "unit": "snapshot_id_len"
+            },
+            {
+              "scenarioId": "SCN-10000-SYNTH-STRESS",
+              "name": "10000 tasks synthetic stress DAG",
+              "taskCount": 10000,
+              "density": 0.03,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "snapshot_read_latency",
+              "durationMs": 1.475648000000092,
+              "value": 1,
+              "unit": "record_found"
+            }
+          ]
+        },
+        {
+          "scenarioId": "SCN-5000-SYNTH-INDEX-IMPACT",
+          "name": "5000 tasks synthetic index impact",
+          "status": "PASS",
+          "metrics": [
+            {
+              "scenarioId": "SCN-5000-SYNTH-INDEX-IMPACT",
+              "name": "5000 tasks synthetic index impact",
+              "taskCount": 5000,
+              "density": 0.05,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "task_insert_throughput",
+              "durationMs": 268.6555079999998,
+              "value": 18611.194824265443,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-INDEX-IMPACT",
+              "name": "5000 tasks synthetic index impact",
+              "taskCount": 5000,
+              "density": 0.05,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "dependency_insert_throughput",
+              "durationMs": 236.10620500000005,
+              "value": 10579.984545514166,
+              "unit": "rows/sec"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-INDEX-IMPACT",
+              "name": "5000 tasks synthetic index impact",
+              "taskCount": 5000,
+              "density": 0.05,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "graph_load_latency",
+              "durationMs": 66.60450500000024,
+              "value": 7498,
+              "unit": "rows_loaded"
+            },
+            {
+              "scenarioId": "SCN-5000-SYNTH-INDEX-IMPACT",
+              "name": "5000 tasks synthetic index impact",
+              "taskCount": 5000,
+              "density": 0.05,
+              "dataSource": "synthetic",
+              "shape": "medium_dag",
+              "operation": "unindexed_graph_load_latency",
+              "durationMs": 63.69207499999993,
+              "value": 7498,
+              "unit": "rows_loaded"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "scenarioCount": 6,
+        "passed": 6,
+        "failed": 0,
+        "totalMetrics": 39
+      }
+    }
+  },
+  {
+    "dir": "database_validation_2026-05-30T21-22-30-155Z",
+    "report": {
+      "timestamp": "2026-05-30T21:22:30.155Z",
+      "system": "local node harness",
+      "totalCases": 29,
+      "status": "PASS",
+      "notes": [
+        "Validation cases are enumerated from the database validation matrix.",
+        "The harness uses injectable sources so it can run without a live database."
+      ],
+      "sections": [
+        {
+          "title": "Validation Coverage",
+          "headers": [
+            "Scenario",
+            "Status"
+          ],
+          "rows": [
+            [
+              "A1 Create User",
+              "planned"
+            ],
+            [
+              "A2 Duplicate Email",
+              "planned"
+            ],
+            [
+              "A3 Invalid User Data",
+              "planned"
+            ],
+            [
+              "A4 Create Workspace",
+              "planned"
+            ],
+            [
+              "A5 Duplicate Slug",
+              "planned"
+            ],
+            [
+              "A6 Create Project",
+              "planned"
+            ],
+            [
+              "A7 Delete Project",
+              "planned"
+            ],
+            [
+              "A8 Create Task",
+              "planned"
+            ],
+            [
+              "A9 Create Task Without Project",
+              "planned"
+            ],
+            [
+              "A10 Negative Duration",
+              "planned"
+            ],
+            [
+              "A11 Parent Task Hierarchy",
+              "planned"
+            ],
+            [
+              "A12 Create Dependency",
+              "planned"
+            ],
+            [
+              "A13 Dependency With Missing Task",
+              "planned"
+            ],
+            [
+              "A14 Duplicate Dependency",
+              "planned"
+            ],
+            [
+              "A15 Self Dependency",
+              "planned"
+            ],
+            [
+              "A16 Viewer Creates Task",
+              "planned"
+            ],
+            [
+              "A17 Admin Creates Task",
+              "planned"
+            ],
+            [
+              "A18 Soft Delete Task",
+              "planned"
+            ],
+            [
+              "A19 Query Active Tasks",
+              "planned"
+            ],
+            [
+              "A20 Update Task",
+              "planned"
+            ],
+            [
+              "B1 Store Duration",
+              "planned"
+            ],
+            [
+              "B2 Store Dependency Type",
+              "planned"
+            ],
+            [
+              "B3 Store Lag",
+              "planned"
+            ],
+            [
+              "B4 Store CPM Snapshot",
+              "planned"
+            ],
+            [
+              "C1 Save Layout",
+              "planned"
+            ],
+            [
+              "C2 Retrieve Layout",
+              "planned"
+            ],
+            [
+              "D1 Fresh Database Migration",
+              "planned"
+            ],
+            [
+              "D2 Upgrade Migration",
+              "planned"
+            ],
+            [
+              "D3 Seed Script",
+              "planned"
+            ]
+          ],
+          "analysis": [
+            "The database validation matrix mirrors the test inventory from plan.md.",
+            "This report is intended to match the structure of the CPM engine benchmark report."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "dir": "database_validation_2026-06-01T18-55-11-044Z",
+    "report": {
+      "timestamp": "2026-06-01T18:55:11.044Z",
+      "system": "local node harness",
+      "totalCases": 29,
+      "status": "PASS",
+      "notes": [
+        "Validation cases are enumerated from the database validation matrix.",
+        "The harness uses injectable sources so it can run without a live database."
+      ],
+      "sections": [
+        {
+          "title": "Validation Coverage",
+          "headers": [
+            "Scenario",
+            "Status"
+          ],
+          "rows": [
+            [
+              "A1 Create User",
+              "planned"
+            ],
+            [
+              "A2 Duplicate Email",
+              "planned"
+            ],
+            [
+              "A3 Invalid User Data",
+              "planned"
+            ],
+            [
+              "A4 Create Workspace",
+              "planned"
+            ],
+            [
+              "A5 Duplicate Slug",
+              "planned"
+            ],
+            [
+              "A6 Create Project",
+              "planned"
+            ],
+            [
+              "A7 Delete Project",
+              "planned"
+            ],
+            [
+              "A8 Create Task",
+              "planned"
+            ],
+            [
+              "A9 Create Task Without Project",
+              "planned"
+            ],
+            [
+              "A10 Negative Duration",
+              "planned"
+            ],
+            [
+              "A11 Parent Task Hierarchy",
+              "planned"
+            ],
+            [
+              "A12 Create Dependency",
+              "planned"
+            ],
+            [
+              "A13 Dependency With Missing Task",
+              "planned"
+            ],
+            [
+              "A14 Duplicate Dependency",
+              "planned"
+            ],
+            [
+              "A15 Self Dependency",
+              "planned"
+            ],
+            [
+              "A16 Viewer Creates Task",
+              "planned"
+            ],
+            [
+              "A17 Admin Creates Task",
+              "planned"
+            ],
+            [
+              "A18 Soft Delete Task",
+              "planned"
+            ],
+            [
+              "A19 Query Active Tasks",
+              "planned"
+            ],
+            [
+              "A20 Update Task",
+              "planned"
+            ],
+            [
+              "B1 Store Duration",
+              "planned"
+            ],
+            [
+              "B2 Store Dependency Type",
+              "planned"
+            ],
+            [
+              "B3 Store Lag",
+              "planned"
+            ],
+            [
+              "B4 Store CPM Snapshot",
+              "planned"
+            ],
+            [
+              "C1 Save Layout",
+              "planned"
+            ],
+            [
+              "C2 Retrieve Layout",
+              "planned"
+            ],
+            [
+              "D1 Fresh Database Migration",
+              "planned"
+            ],
+            [
+              "D2 Upgrade Migration",
+              "planned"
+            ],
+            [
+              "D3 Seed Script",
+              "planned"
+            ]
+          ],
+          "analysis": [
+            "The database validation matrix mirrors the test inventory from plan.md.",
+            "This report is intended to match the structure of the CPM engine benchmark report."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "dir": "database_validation_2026-06-01T19-05-26-529Z",
+    "report": {
+      "timestamp": "2026-06-01T19:05:26.529Z",
+      "system": "local node harness",
+      "totalCases": 29,
+      "status": "PASS",
+      "notes": [
+        "Validation cases are enumerated from the database validation matrix.",
+        "The harness uses injectable sources so it can run without a live database."
+      ],
+      "sections": [
+        {
+          "title": "Validation Coverage",
+          "headers": [
+            "Case",
+            "Area",
+            "Expected Outcome",
+            "Status"
+          ],
+          "rows": [
+            [
+              "A1 Create User",
+              "schema",
+              "Success",
+              "defined"
+            ],
+            [
+              "A2 Duplicate Email",
+              "schema",
+              "Unique constraint violation",
+              "defined"
+            ],
+            [
+              "A3 Invalid User Data",
+              "schema",
+              "Validation error",
+              "defined"
+            ],
+            [
+              "A4 Create Workspace",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A5 Duplicate Slug",
+              "schema",
+              "Unique constraint violation",
+              "defined"
+            ],
+            [
+              "A6 Create Project",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A7 Delete Project",
+              "crud",
+              "Cascade rules preserved",
+              "defined"
+            ],
+            [
+              "A8 Create Task",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A9 Create Task Without Project",
+              "schema",
+              "Foreign key violation",
+              "defined"
+            ],
+            [
+              "A10 Negative Duration",
+              "schema",
+              "Validation error",
+              "defined"
+            ],
+            [
+              "A11 Parent Task Hierarchy",
+              "crud",
+              "Parent-child relation works",
+              "defined"
+            ],
+            [
+              "A12 Create Dependency",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A13 Dependency With Missing Task",
+              "schema",
+              "Foreign key violation",
+              "defined"
+            ],
+            [
+              "A14 Duplicate Dependency",
+              "schema",
+              "Rejected",
+              "defined"
+            ],
+            [
+              "A15 Self Dependency",
+              "schema",
+              "Rejected",
+              "defined"
+            ],
+            [
+              "A16 Viewer Creates Task",
+              "crud",
+              "Permission denied",
+              "defined"
+            ],
+            [
+              "A17 Admin Creates Task",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A18 Soft Delete Task",
+              "crud",
+              "deletedAt populated",
+              "defined"
+            ],
+            [
+              "A19 Query Active Tasks",
+              "crud",
+              "Deleted tasks excluded",
+              "defined"
+            ],
+            [
+              "A20 Update Task",
+              "crud",
+              "Activity entry created",
+              "defined"
+            ],
+            [
+              "B1 Store Duration",
+              "persistence",
+              "Correct persistence",
+              "defined"
+            ],
+            [
+              "B2 Store Dependency Type",
+              "persistence",
+              "Correct retrieval",
+              "defined"
+            ],
+            [
+              "B3 Store Lag",
+              "persistence",
+              "Correct persistence",
+              "defined"
+            ],
+            [
+              "B4 Store CPM Snapshot",
+              "persistence",
+              "Critical path persisted",
+              "defined"
+            ],
+            [
+              "C1 Save Layout",
+              "persistence",
+              "Coordinates stored",
+              "defined"
+            ],
+            [
+              "C2 Retrieve Layout",
+              "persistence",
+              "Coordinates restored",
+              "defined"
+            ],
+            [
+              "D1 Fresh Database Migration",
+              "migration",
+              "Success",
+              "defined"
+            ],
+            [
+              "D2 Upgrade Migration",
+              "migration",
+              "No data loss",
+              "defined"
+            ],
+            [
+              "D3 Seed Script",
+              "migration",
+              "Sample data inserted",
+              "defined"
+            ]
+          ],
+          "analysis": [
+            "The database validation matrix now records explicit expected outcomes for schema, CRUD, persistence, and migration checks.",
+            "This remains a harness-level validation pass until the real database-backed assertions are wired in."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "dir": "database_validation_2026-06-01T19-30-38-479Z",
+    "report": {
+      "timestamp": "2026-06-01T19:30:38.479Z",
+      "system": "local node harness",
+      "totalCases": 29,
+      "status": "PASS",
+      "notes": [
+        "Validation cases are enumerated from the database validation matrix.",
+        "The harness uses injectable sources so it can run without a live database.",
+        "Live database detected; integration tests executed."
+      ],
+      "sections": [
+        {
+          "title": "Validation Coverage",
+          "headers": [
+            "Case",
+            "Area",
+            "Expected Outcome",
+            "Status"
+          ],
+          "rows": [
+            [
+              "A1 Create User",
+              "schema",
+              "Success",
+              "defined"
+            ],
+            [
+              "A2 Duplicate Email",
+              "schema",
+              "Unique constraint violation",
+              "defined"
+            ],
+            [
+              "A3 Invalid User Data",
+              "schema",
+              "Validation error",
+              "defined"
+            ],
+            [
+              "A4 Create Workspace",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A5 Duplicate Slug",
+              "schema",
+              "Unique constraint violation",
+              "defined"
+            ],
+            [
+              "A6 Create Project",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A7 Delete Project",
+              "crud",
+              "Cascade rules preserved",
+              "defined"
+            ],
+            [
+              "A8 Create Task",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A9 Create Task Without Project",
+              "schema",
+              "Foreign key violation",
+              "defined"
+            ],
+            [
+              "A10 Negative Duration",
+              "schema",
+              "Validation error",
+              "defined"
+            ],
+            [
+              "A11 Parent Task Hierarchy",
+              "crud",
+              "Parent-child relation works",
+              "defined"
+            ],
+            [
+              "A12 Create Dependency",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A13 Dependency With Missing Task",
+              "schema",
+              "Foreign key violation",
+              "defined"
+            ],
+            [
+              "A14 Duplicate Dependency",
+              "schema",
+              "Rejected",
+              "defined"
+            ],
+            [
+              "A15 Self Dependency",
+              "schema",
+              "Rejected",
+              "defined"
+            ],
+            [
+              "A16 Viewer Creates Task",
+              "crud",
+              "Permission denied",
+              "defined"
+            ],
+            [
+              "A17 Admin Creates Task",
+              "crud",
+              "Success",
+              "defined"
+            ],
+            [
+              "A18 Soft Delete Task",
+              "crud",
+              "deletedAt populated",
+              "defined"
+            ],
+            [
+              "A19 Query Active Tasks",
+              "crud",
+              "Deleted tasks excluded",
+              "defined"
+            ],
+            [
+              "A20 Update Task",
+              "crud",
+              "Activity entry created",
+              "defined"
+            ],
+            [
+              "B1 Store Duration",
+              "persistence",
+              "Correct persistence",
+              "defined"
+            ],
+            [
+              "B2 Store Dependency Type",
+              "persistence",
+              "Correct retrieval",
+              "defined"
+            ],
+            [
+              "B3 Store Lag",
+              "persistence",
+              "Correct persistence",
+              "defined"
+            ],
+            [
+              "B4 Store CPM Snapshot",
+              "persistence",
+              "Critical path persisted",
+              "defined"
+            ],
+            [
+              "C1 Save Layout",
+              "persistence",
+              "Coordinates stored",
+              "defined"
+            ],
+            [
+              "C2 Retrieve Layout",
+              "persistence",
+              "Coordinates restored",
+              "defined"
+            ],
+            [
+              "D1 Fresh Database Migration",
+              "migration",
+              "Success",
+              "defined"
+            ],
+            [
+              "D2 Upgrade Migration",
+              "migration",
+              "No data loss",
+              "defined"
+            ],
+            [
+              "D3 Seed Script",
+              "migration",
+              "Sample data inserted",
+              "defined"
+            ]
+          ],
+          "analysis": [
+            "The database validation matrix now records explicit expected outcomes for schema, CRUD, persistence, and migration checks.",
+            "Integration tests were executed and results are reported in the Integration Test Results section."
+          ]
+        },
+        {
+          "title": "Integration Test Results",
+          "headers": [
+            "Test",
+            "Area",
+            "Status",
+            "Details"
+          ],
+          "rows": [
+            [
+              "Schema Introspection",
+              "schema",
+              "PASS",
+              ""
+            ],
+            [
+              "CRUD Integration",
+              "crud",
+              "PASS",
+              ""
+            ],
+            [
+              "Constraint Negative-Path",
+              "schema",
+              "PASS",
+              ""
+            ],
+            [
+              "Transaction Commit/Rollback",
+              "persistence",
+              "PASS",
+              ""
+            ]
+          ],
+          "analysis": [
+            "Live integration tests executed against configured DATABASE_URL."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "dir": "db_volume_large_2026-06-01T19-43-34-470Z",
+    "report": {
+      "timestamp": "2026-06-01T19:43:36.147Z",
+      "preset": "large",
+      "presetSpec": {
+        "workspaceCount": 2,
+        "projectCount": 5,
+        "taskCount": 10000,
+        "dependencyDensity": 0.05,
+        "concurrency": 20
+      },
+      "metrics": {
+        "inserts": {
+          "total": 10000,
+          "durationMs": 1468.335517,
+          "insertsPerSec": 6810.432550478175
+        },
+        "reads": {
+          "total": 11103,
+          "durationMs": 7.49255200000016,
+          "qps": 1481871.5972875147
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_large_2026-06-01T19-44-06-653Z",
+    "report": {
+      "timestamp": "2026-06-01T19:44:08.252Z",
+      "preset": "large",
+      "presetSpec": {
+        "workspaceCount": 2,
+        "projectCount": 5,
+        "taskCount": 10000,
+        "dependencyDensity": 0.05,
+        "concurrency": 20
+      },
+      "metrics": {
+        "inserts": {
+          "total": 10000,
+          "durationMs": 1425.18768,
+          "insertsPerSec": 7016.61973390059
+        },
+        "reads": {
+          "total": 11103,
+          "durationMs": 8.314986999999974,
+          "qps": 1335299.742501105
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_large_2026-06-02T07-20-19-726Z",
+    "report": {
+      "timestamp": "2026-06-02T07:20:20.275Z",
+      "preset": "large",
+      "presetSpec": {
+        "workspaceCount": 2,
+        "projectCount": 5,
+        "taskCount": 10000,
+        "dependencyDensity": 0.05,
+        "concurrency": 20
+      },
+      "metrics": {
+        "inserts": {
+          "total": 10000,
+          "durationMs": 465.122105,
+          "insertsPerSec": 21499.73069974819
+        },
+        "reads": {
+          "total": 11100,
+          "durationMs": 2.234387999999967,
+          "qps": 4967803.264249612
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_medium_2026-06-01T19-43-33-051Z",
+    "report": {
+      "timestamp": "2026-06-01T19:43:33.402Z",
+      "preset": "medium",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 2,
+        "taskCount": 1000,
+        "dependencyDensity": 0.2,
+        "concurrency": 10
+      },
+      "metrics": {
+        "inserts": {
+          "total": 1000,
+          "durationMs": 177.59990500000004,
+          "insertsPerSec": 5630.6336425123645
+        },
+        "reads": {
+          "total": 1103,
+          "durationMs": 9.067218000000025,
+          "qps": 121647.01455286471
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_medium_2026-06-01T19-44-05-483Z",
+    "report": {
+      "timestamp": "2026-06-01T19:44:05.787Z",
+      "preset": "medium",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 2,
+        "taskCount": 1000,
+        "dependencyDensity": 0.2,
+        "concurrency": 10
+      },
+      "metrics": {
+        "inserts": {
+          "total": 1000,
+          "durationMs": 153.08573,
+          "insertsPerSec": 6532.287496685681
+        },
+        "reads": {
+          "total": 1103,
+          "durationMs": 7.4566200000000435,
+          "qps": 147922.2489546193
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_medium_2026-06-02T07-20-19-212Z",
+    "report": {
+      "timestamp": "2026-06-02T07:20:19.361Z",
+      "preset": "medium",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 2,
+        "taskCount": 1000,
+        "dependencyDensity": 0.2,
+        "concurrency": 10
+      },
+      "metrics": {
+        "inserts": {
+          "total": 1000,
+          "durationMs": 69.33522199999999,
+          "insertsPerSec": 14422.684043616391
+        },
+        "reads": {
+          "total": 1100,
+          "durationMs": 2.221636999999987,
+          "qps": 495130.3925888912
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_small_2026-06-01T19-43-31-992Z",
+    "report": {
+      "timestamp": "2026-06-01T19:43:32.179Z",
+      "preset": "small",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 1,
+        "taskCount": 100,
+        "dependencyDensity": 0.5,
+        "concurrency": 5
+      },
+      "metrics": {
+        "inserts": {
+          "total": 100,
+          "durationMs": 29.454795999999988,
+          "insertsPerSec": 3395.032849658848
+        },
+        "reads": {
+          "total": 103,
+          "durationMs": 6.585143000000016,
+          "qps": 15641.270052905418
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_small_2026-06-01T19-44-04-466Z",
+    "report": {
+      "timestamp": "2026-06-01T19:44:04.634Z",
+      "preset": "small",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 1,
+        "taskCount": 100,
+        "dependencyDensity": 0.5,
+        "concurrency": 5
+      },
+      "metrics": {
+        "inserts": {
+          "total": 100,
+          "durationMs": 31.927426000000025,
+          "insertsPerSec": 3132.103414788274
+        },
+        "reads": {
+          "total": 103,
+          "durationMs": 8.277768000000037,
+          "qps": 12442.967717867852
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_small_2026-06-01T19-44-27-127Z",
+    "report": {
+      "timestamp": "2026-06-01T19:44:27.279Z",
+      "preset": "small",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 1,
+        "taskCount": 100,
+        "dependencyDensity": 0.5,
+        "concurrency": 5
+      },
+      "metrics": {
+        "inserts": {
+          "total": 100,
+          "durationMs": 26.89450400000004,
+          "insertsPerSec": 3718.231799329701
+        },
+        "reads": {
+          "total": 103,
+          "durationMs": 6.926910000000021,
+          "qps": 14869.545006359212
+        }
+      }
+    }
+  },
+  {
+    "dir": "db_volume_small_2026-06-02T07-20-18-676Z",
+    "report": {
+      "timestamp": "2026-06-02T07:20:18.775Z",
+      "preset": "small",
+      "presetSpec": {
+        "workspaceCount": 1,
+        "projectCount": 1,
+        "taskCount": 100,
+        "dependencyDensity": 0.5,
+        "concurrency": 5
+      },
+      "metrics": {
+        "inserts": {
+          "total": 100,
+          "durationMs": 18.99597,
+          "insertsPerSec": 5264.274475059709
+        },
+        "reads": {
+          "total": 100,
+          "durationMs": 3.3193979999999783,
+          "qps": 30125.944523675877
+        }
+      }
+    }
+  }
+]

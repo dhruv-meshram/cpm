@@ -16,8 +16,12 @@
     "db:test:transaction": "tsx database/tests/transaction.test.ts",
     "db:test:benchmark": "tsx database/tests/benchmark.test.ts",
     "db:bench:run": "tsx scripts/db_benchmark_runner.ts",
-    "db:bench:aggregate": "tsx scripts/aggregate_reports.ts"
-    ,
+    "db:bench:aggregate": "tsx scripts/aggregate_reports.ts",
+    "db:bench:matrix": "tsx scripts/db_benchmark_matrix.ts default",
+    "db:bench:matrix:full": "tsx scripts/db_benchmark_matrix.ts full",
+    "db:bench:visualize": "tsx scripts/db_benchmark_visualize.ts",
+    "db:bench:matrix:report": "npm run db:bench:matrix && npm run db:bench:visualize",
+    "db:bench:all": "tsx scripts/generate_master_benchmark_report.ts",
     "db:test:volume:small": "tsx scripts/db_volume_benchmark.ts small",
     "db:test:volume:medium": "tsx scripts/db_volume_benchmark.ts medium",
     "db:test:volume:large": "tsx scripts/db_volume_benchmark.ts large"

@@ -204,6 +204,17 @@ target_include_directories(benchmark_validation PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/bench
 )
 
+# CLI JSON Wrapper
+add_executable(cpm_cli
+    engine/src/cli.cpp
+)
+target_link_libraries(cpm_cli
+    PRIVATE cpm_core
+)
+target_include_directories(cpm_cli PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
+)
+
 # ============================================================================
 # Build Summary
 # ============================================================================
