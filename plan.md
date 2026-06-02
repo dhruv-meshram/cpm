@@ -3768,3 +3768,364 @@ Measure query
 ```
 
 Verify improvement.
+
+---
+# CPM Persistence Integration Phase
+
+## Objective
+
+Integrate the validated database layer with the validated CPM engine and verify that project data stored in the database can be correctly transformed into CPM calculations and results.
+
+---
+
+# 1. Data Contract Validation
+
+## Define CPM Input Contract
+
+Verify that database entities can be mapped into CPM engine inputs.
+
+### Tasks
+
+* Review CPM engine input requirements.
+* Define Task DTOs.
+* Define Dependency DTOs.
+* Define Graph DTOs.
+* Define Result DTOs.
+
+### Validation
+
+* Every database task maps correctly to a CPM task.
+* Every dependency maps correctly to a CPM edge.
+* No information loss during transformation.
+
+---
+
+# 2. Repository Integration
+
+## Task Repository
+
+Implement:
+
+* getProjectTasks(projectId)
+* createTask()
+* updateTask()
+* deleteTask()
+
+### Validation
+
+* Correct tasks retrieved.
+* Only project-specific tasks returned.
+
+---
+
+## Dependency Repository
+
+Implement:
+
+* getProjectDependencies(projectId)
+* createDependency()
+* deleteDependency()
+
+### Validation
+
+* Correct dependency graph returned.
+* No orphan dependencies.
+
+---
+
+## Project Repository
+
+Implement:
+
+* getProject()
+* createProject()
+* updateProject()
+
+### Validation
+
+* Project metadata loads correctly.
+
+---
+
+# 3. CPM Data Loading Service
+
+Create service:
+
+calculateProject(projectId)
+
+### Responsibilities
+
+* Load project.
+* Load tasks.
+* Load dependencies.
+* Construct CPM graph.
+* Validate graph.
+* Invoke CPM engine.
+
+### Validation
+
+* Correct graph built from database records.
+* Missing data handled gracefully.
+
+---
+
+# 4. Graph Construction Validation
+
+Verify graph creation from persistence layer.
+
+### Tests
+
+#### Linear Chain
+
+A → B → C
+
+Expected:
+
+* 3 nodes
+* 2 edges
+
+#### Fork Join
+
+A → B → D
+A → C → D
+
+Expected:
+
+* Correct adjacency structure
+
+#### Large Graph
+
+100+ nodes
+
+Expected:
+
+* Graph structure preserved
+
+---
+
+# 5. CPM Engine Integration Validation
+
+Verify database-loaded graphs produce correct CPM results.
+
+## Scenario 1
+
+A(2) → B(3) → C(4)
+
+Expected:
+
+* Duration = 9
+* Critical Path = A-B-C
+
+---
+
+## Scenario 2
+
+Parallel Paths
+
+Expected:
+
+* Correct longest path
+* Correct float calculations
+
+---
+
+## Scenario 3
+
+Multiple Critical Paths
+
+Expected:
+
+* Multiple critical paths identified
+
+---
+
+## Scenario 4
+
+Disconnected Components
+
+Expected:
+
+* Defined handling strategy
+
+---
+
+## Scenario 5
+
+Cycle Detection
+
+Expected:
+
+* Validation error
+* No CPM execution
+
+---
+
+# 6. Result Persistence (If Supported)
+
+If CPM results are stored:
+
+Implement:
+
+* saveCalculationResult()
+* saveCriticalPath()
+* saveTaskMetrics()
+
+Persist:
+
+* ES
+* EF
+* LS
+* LF
+* Float
+* Critical Path
+
+### Validation
+
+* Saved values equal computed values.
+
+---
+
+# 7. Transaction Validation
+
+Verify atomic CPM operations.
+
+Example:
+
+Load Data
+↓
+Run CPM
+↓
+Save Results
+
+If failure occurs:
+
+Expected:
+
+* Rollback transaction
+
+Validation:
+
+* No partial writes.
+
+---
+
+# 8. Error Handling Validation
+
+Validate:
+
+## Missing Project
+
+Expected:
+
+* Project not found error
+
+## Missing Task
+
+Expected:
+
+* Validation failure
+
+## Invalid Dependency
+
+Expected:
+
+* Dependency validation error
+
+## Cyclic Graph
+
+Expected:
+
+* Cycle detection error
+
+---
+
+# 9. Integration Benchmarking
+
+Measure:
+
+## Database Retrieval
+
+Metrics:
+
+* Query latency
+* Memory usage
+
+---
+
+## Graph Construction
+
+Metrics:
+
+* Build time
+
+---
+
+## CPM Execution
+
+Metrics:
+
+* Calculation time
+
+---
+
+## End-to-End
+
+Measure:
+
+Database Load
+↓
+Graph Build
+↓
+CPM Calculation
+↓
+Result Persistence
+
+Datasets:
+
+* 100 tasks
+* 500 tasks
+* 1000 tasks
+* 5000 tasks
+
+Record:
+
+* Average latency
+* P95 latency
+* Peak memory
+
+---
+
+# 10. Validation Reporting
+
+Add CPM persistence integration section to REPORT.md.
+
+Report:
+
+* Repository Validation
+* Graph Construction Validation
+* CPM Integration Validation
+* Result Persistence Validation
+* Transaction Validation
+* Benchmark Results
+
+---
+
+# Exit Criteria
+
+The phase is complete when:
+
+✓ Database entities successfully map to CPM inputs
+
+✓ CPM calculations execute using database-loaded projects
+
+✓ All validation scenarios pass
+
+✓ Cycle detection works
+
+✓ Error handling works
+
+✓ Benchmarks generated
+
+✓ Validation report generated
+
+✓ Database + CPM integration verified end-to-end
