@@ -9,6 +9,8 @@ const createTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   duration: z.number().min(0),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional()
 });
 
@@ -67,7 +69,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { title, description, duration, state } = parsed.data;
+    const { title, description, duration, state, startDate, endDate } = parsed.data;
 
     const task = await prisma.task.create({
       data: {
@@ -78,6 +80,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         duration,
         estimatedDays: duration,
         state: state || 'TODO',
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
         isDraft: false
       }
     });

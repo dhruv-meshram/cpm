@@ -33,7 +33,7 @@ export async function GET(req: Request) {
       whereClause.name = { contains: search, mode: 'insensitive' };
     }
 
-    const [projects, total] = await Promise.all([
+    const [projectsData, total] = await Promise.all([
       prisma.project.findMany({
         where: whereClause,
         orderBy: { updatedAt: 'desc' },
@@ -42,15 +42,82 @@ export async function GET(req: Request) {
         select: {
           id: true,
           name: true,
+          identifier: true,
           description: true,
           status: true,
-          updatedAt: true
+          health: true,
+          updatedAt: true,
+          createdAt: true,
+          ownerId: true,
+          _count: {
+            select: {
+              tasks: true,
+              dependencies: true
+            }
+          },
+          tasks: {
+            select: { state: true }
+          },
+          snapshots: {
+            orderBy: { calculationTime: 'desc' },
+            take: 1
+          },
+          owner: {
+            select: { name: true }
+          }
         }
       }),
       prisma.project.count({ where: whereClause })
     ]);
 
-    return NextResponse.json({ data: projects, total });
+    let globalTasks = 0;
+    let globalCriticalTasks = 0;
+    let activeProjects = 0;
+    let totalCompletion = 0;
+
+    const enrichedProjects = projectsData.map(p => {
+      const completedTasks = p.tasks.filter(t => t.state === 'DONE').length;
+      const progressPercent = p._count.tasks > 0 ? Math.round((completedTasks / p._count.tasks) * 100) : 0;
+      
+      const latestSnapshot = p.snapshots[0];
+      const projectDuration = latestSnapshot ? (latestSnapshot.projectDuration as any).toNumber?.() || Number(latestSnapshot.projectDuration) || 0 : 0;
+      const criticalPath = latestSnapshot ? (latestSnapshot.criticalPath as any[]) || [] : [];
+      const criticalTasksCount = criticalPath.length;
+
+      globalTasks += p._count.tasks;
+      globalCriticalTasks += criticalTasksCount;
+      if (p.status === 'ACTIVE') activeProjects++;
+      totalCompletion += progressPercent;
+
+      return {
+        id: p.id,
+        identifier: p.identifier,
+        name: p.name,
+        description: p.description,
+        status: p.status,
+        health: p.health,
+        tasksCount: p._count.tasks,
+        dependenciesCount: p._count.dependencies,
+        criticalTasksCount,
+        completionPercent: progressPercent,
+        durationDays: projectDuration,
+        criticalPathLength: criticalTasksCount,
+        criticalPathDuration: projectDuration,
+        owner: p.owner?.name || 'Unassigned',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt
+      };
+    });
+
+    const portfolioStats = {
+      totalProjects: total,
+      activeProjects,
+      globalTasks,
+      globalCriticalTasks,
+      portfolioCompletionPercent: total > 0 ? Math.round(totalCompletion / total) : 0
+    };
+
+    return NextResponse.json({ data: enrichedProjects, total, portfolioStats });
   } catch (error) {
     console.error('Fetch projects error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

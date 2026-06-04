@@ -32,51 +32,138 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
     const runId = randomUUID();
 
     // =========================================================
-    // TODO: Bridge to C++ Math Engine
+    // JavaScript fallback CPM Engine for Graph/Gantt Highlighting
     // =========================================================
-    // In production, this data would be passed to the C++ binary via
-    // child_process, WebAssembly, or a dedicated computation microservice.
-    // 
-    // const enginePayload = { tasks, dependencies };
-    // const cpmResult = await computeCpmEngine(enginePayload);
-    //
-    // For now, we simulate an asynchronous handoff to the engine.
     
-    // Simulating result persistence
-    setTimeout(async () => {
-      try {
-        // Mock result payload based on plan.md specifications
-        const result = { projectDuration: 10.0, criticalPath: ['mock_task_1', 'mock_task_2'] };
+    // Build Nodes
+    const nodes = new Map<string, any>();
+    tasks.forEach(t => {
+      nodes.set(t.id, {
+        id: t.id,
+        duration: Number(t.duration),
+        predecessors: [],
+        successors: [],
+        es: 0,
+        ef: Number(t.duration),
+        ls: 0,
+        lf: 0,
+        slack: 0,
+        isCritical: false,
+        indegree: 0
+      });
+    });
 
-        await prisma.cPMSnapshot.create({
-          data: {
-            id: runId,
-            projectId,
-            version: '1.0.0',
-            projectDuration: result.projectDuration,
-            criticalPath: result.criticalPath,
-            payload: {
-              status: 'success',
-              message: 'Mock calculation completed'
-            }
-          }
-        });
-
-        await logActivity({
-          entityType: 'Project',
-          entityId: projectId,
-          action: `CPM Engine generated new schedule (Duration: ${result.projectDuration} days)`,
-          userId: session.userId as string
-        });
-        
-        await emitToProjectRoom(projectId, 'cpm_run_completed', {
-          status: 'success',
-          runId
-        });
-      } catch (err) {
-        console.error('Error saving CPM snapshot:', err);
+    dependencies.forEach(d => {
+      if (nodes.has(d.predecessorTaskId) && nodes.has(d.successorTaskId)) {
+        nodes.get(d.predecessorTaskId).successors.push(d.successorTaskId);
+        nodes.get(d.successorTaskId).predecessors.push(d.predecessorTaskId);
+        nodes.get(d.successorTaskId).indegree++;
       }
-    }, 2000);
+    });
+
+    // Forward Pass
+    const queue: string[] = [];
+    nodes.forEach((node, id) => {
+      if (node.indegree === 0) queue.push(id);
+    });
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const current = nodes.get(currentId);
+      current.successors.forEach((succId: string) => {
+        const succ = nodes.get(succId);
+        if (current.ef > succ.es) {
+          succ.es = current.ef;
+          succ.ef = succ.es + succ.duration;
+        }
+        succ.indegree--;
+        if (succ.indegree === 0) queue.push(succId);
+      });
+    }
+
+    // Project duration
+    let projectDuration = 0;
+    nodes.forEach(n => {
+      if (n.ef > projectDuration) projectDuration = n.ef;
+    });
+
+    // Backward Pass
+    nodes.forEach(n => {
+      n.lf = projectDuration;
+      n.ls = projectDuration - n.duration;
+      // Reset outdegree for reverse traversal
+      n.outdegree = n.successors.length;
+    });
+
+    const reverseQueue: string[] = [];
+    nodes.forEach((node, id) => {
+      if (node.outdegree === 0) reverseQueue.push(id);
+    });
+
+    while (reverseQueue.length > 0) {
+      const currentId = reverseQueue.shift()!;
+      const current = nodes.get(currentId);
+      current.predecessors.forEach((predId: string) => {
+        const pred = nodes.get(predId);
+        if (current.ls < pred.lf) {
+          pred.lf = current.ls;
+          pred.ls = pred.lf - pred.duration;
+        }
+        pred.outdegree--;
+        if (pred.outdegree === 0) reverseQueue.push(predId);
+      });
+    }
+
+    // Calculate slack and critical path
+    const criticalPath: string[] = [];
+    const taskDetails: Record<string, any> = {};
+
+    nodes.forEach((n, id) => {
+      n.slack = n.lf - n.ef;
+      n.isCritical = n.slack === 0;
+      if (n.isCritical) criticalPath.push(id);
+      
+      taskDetails[id] = {
+        es: n.es,
+        ef: n.ef,
+        ls: n.ls,
+        lf: n.lf,
+        slack: n.slack,
+        isCritical: n.isCritical
+      };
+    });
+
+    // Persist result
+    try {
+      await prisma.cPMSnapshot.create({
+        data: {
+          id: runId,
+          projectId,
+          version: '1.0.0',
+          projectDuration,
+          criticalPath,
+          payload: {
+            status: 'success',
+            message: 'JS fallback calculation completed',
+            taskDetails
+          }
+        }
+      });
+
+      await logActivity({
+        entityType: 'Project',
+        entityId: projectId,
+        action: `CPM Engine generated new schedule (Duration: ${projectDuration} days)`,
+        userId: session.userId as string
+      });
+      
+      await emitToProjectRoom(projectId, 'cpm_run_completed', {
+        status: 'success',
+        runId
+      });
+    } catch (err) {
+      console.error('Error saving CPM snapshot:', err);
+    }
 
     return NextResponse.json({ runId, status: 'processing' }, { status: 202 });
   } catch (error) {

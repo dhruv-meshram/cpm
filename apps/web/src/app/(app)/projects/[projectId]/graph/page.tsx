@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { useEffect } from 'react';
-import { ReactFlow, Controls, Background, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
+import { useEffect, useState } from 'react';
+import { ReactFlow, Controls, Background, useNodesState, useEdgesState, MarkerType, Panel } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
 import { Play, Activity } from 'lucide-react';
@@ -43,6 +43,18 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'LR') => {
   return { nodes: newNodes, edges };
 };
 
+const getStatusColor = (state: string) => {
+  switch (state) {
+    case 'BACKLOG': return { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' };
+    case 'TODO': return { bg: '#e2e8f0', border: '#94a3b8', text: '#334155' };
+    case 'IN_PROGRESS': return { bg: '#dbeafe', border: '#93c5fd', text: '#1d4ed8' };
+    case 'REVIEW': return { bg: '#fef3c7', border: '#fcd34d', text: '#b45309' };
+    case 'DONE': return { bg: '#d1fae5', border: '#6ee7b7', text: '#047857' };
+    case 'CANCELED': return { bg: '#fef2f2', border: '#fca5a5', text: '#ef4444' };
+    default: return { bg: '#ffffff', border: '#e2e8f0', text: '#0f172a' };
+  }
+};
+
 export default function GraphPage() {
   const params = useParams();
   const projectId = params.projectId as string;
@@ -50,6 +62,7 @@ export default function GraphPage() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
+  const [showCriticalOnly, setShowCriticalOnly] = useState(false);
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -69,6 +82,18 @@ export default function GraphPage() {
     }
   });
 
+  const { data: cpmResults, isLoading: cpmLoading } = useQuery({
+    queryKey: ['cpmResults', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/projects/${projectId}/cpm/results`);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error('Failed to fetch CPM results');
+      }
+      return res.json();
+    }
+  });
+
   const runCpm = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/v1/projects/${projectId}/cpm/run`, { method: 'POST' });
@@ -76,46 +101,90 @@ export default function GraphPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      // In a real app, we might wait for WS or poll to fetch updated critical path info.
-      alert('CPM Calculation trigger sent!');
+      queryClient.invalidateQueries({ queryKey: ['cpmResults', projectId] });
+      alert('CPM Calculation triggered! Results updated.');
     }
   });
 
   useEffect(() => {
-    if (tasksLoading || depsLoading) return;
+    if (tasksLoading || depsLoading || cpmLoading) return;
 
-    const initialNodes = tasks.map((t: any) => ({
-      id: t.id,
-      data: { label: `${t.title} (${t.duration}d)` },
-      style: {
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        width: nodeWidth,
-        padding: '10px',
-        fontSize: '12px',
-        fontWeight: '500',
-        color: '#0f172a',
-        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
-      }
-    }));
+    const taskDetails = cpmResults?.details?.taskDetails || {};
+    const criticalPath = cpmResults?.criticalPath || [];
 
-    const initialEdges = dependencies.map((d: any) => ({
-      id: d.id,
-      source: d.predecessorTaskId,
-      target: d.successorTaskId,
-      animated: true,
-      label: d.dependencyType,
-      labelBgStyle: { fill: '#f8fafc' },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
-      style: { stroke: '#94a3b8', strokeWidth: 1.5 }
-    }));
+    const initialNodes = tasks.map((t: any) => {
+      const details = taskDetails[t.id];
+      const isCritical = details?.isCritical || false;
+      const opacity = showCriticalOnly && !isCritical ? 0.2 : 1;
+      
+      return {
+        id: t.id,
+        data: { 
+          label: (
+            <div title={
+              details 
+                ? `Task: ${t.title}\nDuration: ${t.duration}d\nES: ${details.es} | EF: ${details.ef}\nLS: ${details.ls} | LF: ${details.lf}\nSlack: ${details.slack}\nCritical: ${isCritical ? 'Yes' : 'No'}`
+                : `Task: ${t.title}\nDuration: ${t.duration}d\nCritical: No`
+            }>
+              <div className="font-semibold truncate">{t.title}</div>
+              <div className="text-xs mt-1 font-medium px-1.5 py-0.5 rounded inline-block bg-white/50 border border-black/5">
+                {t.state}
+              </div>
+              <div className="text-[10px] opacity-80 mt-1">
+                {t.duration}d {details ? `| Slack: ${details.slack}` : ''}
+              </div>
+            </div>
+          )
+        },
+        style: {
+          background: getStatusColor(t.state).bg,
+          border: isCritical ? '2px solid #ef4444' : `1px solid ${getStatusColor(t.state).border}`,
+          borderRadius: '8px',
+          width: nodeWidth,
+          padding: '10px',
+          fontSize: '12px',
+          fontWeight: '500',
+          color: getStatusColor(t.state).text,
+          boxShadow: isCritical ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+          opacity,
+          transition: 'all 0.3s ease'
+        }
+      };
+    });
+
+    const initialEdges = dependencies.map((d: any) => {
+      const sourceIsCritical = criticalPath.includes(d.predecessorTaskId);
+      const targetIsCritical = criticalPath.includes(d.successorTaskId);
+      const isCriticalEdge = sourceIsCritical && targetIsCritical;
+      const opacity = showCriticalOnly && !isCriticalEdge ? 0.1 : 1;
+
+      return {
+        id: d.id,
+        source: d.predecessorTaskId,
+        target: d.successorTaskId,
+        animated: !isCriticalEdge,
+        label: d.dependencyType,
+        labelBgStyle: { fill: isCriticalEdge ? '#fee2e2' : '#f8fafc' },
+        labelStyle: { fill: isCriticalEdge ? '#ef4444' : '#64748b', fontWeight: isCriticalEdge ? 600 : 400 },
+        markerEnd: { 
+          type: MarkerType.ArrowClosed, 
+          color: isCriticalEdge ? '#ef4444' : '#94a3b8',
+          width: isCriticalEdge ? 20 : 15,
+          height: isCriticalEdge ? 20 : 15
+        },
+        style: { 
+          stroke: isCriticalEdge ? '#ef4444' : '#94a3b8', 
+          strokeWidth: isCriticalEdge ? 3 : 1.5,
+          opacity,
+          transition: 'all 0.3s ease'
+        }
+      };
+    });
 
     const layouted = getLayoutedElements(initialNodes, initialEdges);
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
-  }, [tasks, dependencies, tasksLoading, depsLoading, setNodes, setEdges]);
+  }, [tasks, dependencies, cpmResults, tasksLoading, depsLoading, cpmLoading, showCriticalOnly, setNodes, setEdges]);
 
   if (tasksLoading || depsLoading) {
     return <div className="p-8 text-slate-500">Generating graph...</div>;
@@ -147,6 +216,48 @@ export default function GraphPage() {
         >
           <Background color="#cbd5e1" gap={16} size={1} />
           <Controls />
+          
+          <Panel position="bottom-left" className="bg-white/90 p-4 rounded-xl shadow-lg border border-slate-200 text-sm backdrop-blur-sm">
+            <h4 className="font-semibold text-slate-800 mb-3">Graph Legend</h4>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 mb-4 text-xs border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#f1f5f9] border border-[#cbd5e1]"></div><span className="text-slate-600">Backlog</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#e2e8f0] border border-[#94a3b8]"></div><span className="text-slate-600">Todo</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#dbeafe] border border-[#93c5fd]"></div><span className="text-slate-600">In Progress</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fef3c7] border border-[#fcd34d]"></div><span className="text-slate-600">Review</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#d1fae5] border border-[#6ee7b7]"></div><span className="text-slate-600">Done</span></div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-slate-100 border border-slate-300 shadow-sm" />
+                <span className="text-slate-600">Normal Task</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-slate-100 border-2 border-red-500 shadow-[0_0_0_2px_rgba(239,68,68,0.2)]" />
+                <span className="text-slate-900 font-medium">Critical Task (Red Ring)</span>
+              </div>
+              <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100">
+                <div className="w-6 h-0.5 bg-slate-400" />
+                <span className="text-slate-600">Normal Dependency</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-1 bg-red-500 rounded-full" />
+                <span className="text-slate-900 font-medium">Critical Dependency</span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-200">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showCriticalOnly}
+                  onChange={(e) => setShowCriticalOnly(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-slate-700 font-medium text-sm">Show Critical Path Only</span>
+              </label>
+            </div>
+          </Panel>
         </ReactFlow>
       </div>
     </div>

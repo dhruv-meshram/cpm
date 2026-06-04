@@ -36,6 +36,19 @@ enum WorkItemState {
   CANCELED
 }
 
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  DELAYED
+  COMPLETED
+}
+
+enum ProjectHealth {
+  HEALTHY
+  WARNING
+  AT_RISK
+}
+
 model Workspace {
   id          String           @id @default(cuid())
   name        String
@@ -60,6 +73,7 @@ model User {
 
   workspaceMemberships WorkspaceMember[]
   projectMemberships    ProjectMember[]
+  ownedProjects         Project[]
   comments              Comment[]
   activityLogs          ActivityLog[]
   workLogs              WorkLog[]
@@ -89,7 +103,9 @@ model Project {
   description String?
   startDate   DateTime?
   targetDate  DateTime?
-  status      String      @default("active")
+  status      ProjectStatus @default(DRAFT)
+  health      ProjectHealth @default(HEALTHY)
+  ownerId     String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -103,6 +119,7 @@ model Project {
   releases    Release[]
   layouts     GraphLayout[]
   snapshots   CPMSnapshot[]
+  owner       User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])

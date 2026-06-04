@@ -3,23 +3,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Plus, Clock, MoreVertical } from 'lucide-react';
+import { Plus, Clock, MoreVertical, Edit2 } from 'lucide-react';
+import { TaskModal } from '@/components/TaskModal';
 
 const COLUMNS = [
   { id: 'BACKLOG', label: 'Backlog', color: 'bg-slate-200' },
-  { id: 'TODO', label: 'To Do', color: 'bg-blue-100' },
-  { id: 'IN_PROGRESS', label: 'In Progress', color: 'bg-amber-100' },
-  { id: 'REVIEW', label: 'Review', color: 'bg-purple-100' },
-  { id: 'DONE', label: 'Done', color: 'bg-emerald-100' },
+  { id: 'TODO', label: 'To Do', color: 'bg-slate-400' },
+  { id: 'IN_PROGRESS', label: 'In Progress', color: 'bg-blue-500' },
+  { id: 'REVIEW', label: 'Review', color: 'bg-amber-400' },
+  { id: 'DONE', label: 'Done', color: 'bg-emerald-500' },
 ];
 
 export default function TasksPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const queryClient = useQueryClient();
-  const [isCreating, setIsCreating] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDuration, setNewTaskDuration] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<any>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading } = useQuery({
@@ -31,28 +31,7 @@ export default function TasksPage() {
     }
   });
 
-  const createTask = useMutation({
-    mutationFn: async (e: React.FormEvent) => {
-      e.preventDefault();
-      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: newTaskTitle, 
-          duration: newTaskDuration,
-          state: 'BACKLOG' 
-        })
-      });
-      if (!res.ok) throw new Error('Failed to create task');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
-      setIsCreating(false);
-      setNewTaskTitle('');
-      setNewTaskDuration(1);
-    }
-  });
+  // createTask is now handled in TaskModal
 
   const updateTaskState = useMutation({
     mutationFn: async ({ taskId, state }: { taskId: string, state: string }) => {
@@ -99,54 +78,22 @@ export default function TasksPage() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-slate-900">Task Board</h2>
         <button 
-          onClick={() => setIsCreating(true)}
-          className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
+          onClick={() => {
+            setTaskToEdit(null);
+            setIsModalOpen(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
         >
-          <Plus size={16} /> Add Task
+          <Plus size={16} /> New Task
         </button>
       </div>
 
-      {isCreating && (
-        <form onSubmit={(e) => createTask.mutate(e)} className="mb-8 p-4 bg-white rounded-xl shadow-sm border border-slate-200 flex gap-4 items-end">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Task Title</label>
-            <input 
-              autoFocus
-              required
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Design database schema"
-            />
-          </div>
-          <div className="w-32">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Duration (days)</label>
-            <input 
-              type="number"
-              min="0.5"
-              step="0.5"
-              required
-              value={newTaskDuration}
-              onChange={(e) => setNewTaskDuration(Number(e.target.value))}
-              className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={createTask.isPending}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            Save
-          </button>
-          <button 
-            type="button" 
-            onClick={() => setIsCreating(false)}
-            className="text-slate-500 text-sm font-medium hover:text-slate-800 px-2"
-          >
-            Cancel
-          </button>
-        </form>
-      )}
+      <TaskModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        projectId={projectId}
+        taskToEdit={taskToEdit}
+      />
 
       {/* Kanban Board */}
       <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
@@ -156,7 +103,7 @@ export default function TasksPage() {
           return (
             <div 
               key={col.id} 
-              className="flex-shrink-0 w-80 bg-slate-100 rounded-xl p-4 flex flex-col border border-slate-200/60"
+              className="flex-shrink-0 w-80 bg-slate-50/50 rounded-xl p-4 flex flex-col border border-slate-200/60"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
             >
@@ -180,8 +127,14 @@ export default function TasksPage() {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-medium text-slate-900 text-sm">{task.title}</h4>
-                      <button className="text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical size={14} />
+                      <button 
+                        onClick={() => {
+                          setTaskToEdit(task);
+                          setIsModalOpen(true);
+                        }}
+                        className="text-slate-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Edit2 size={14} />
                       </button>
                     </div>
                     {task.description && (

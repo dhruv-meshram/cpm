@@ -46,9 +46,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     const lastCpmRun = project.snapshots[0]?.calculationTime || null;
 
     return NextResponse.json({
-      id: project.id,
-      name: project.name,
-      description: project.description,
+      ...project,
       totalTasks: project._count.tasks,
       completedTasks,
       lastUpdated: project.updatedAt,
