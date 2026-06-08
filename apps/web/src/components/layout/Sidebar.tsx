@@ -3,18 +3,37 @@
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, Settings, LogOut, Menu } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Network,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const navItems = [
+  {
+    group: 'Workspace',
+    items: [
+      { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+      { label: 'Projects', icon: FolderKanban, href: '/projects' },
+    ],
+  },
+  {
+    group: 'Administration',
+    items: [
+      { label: 'Settings', icon: Settings, href: '/settings' },
+    ],
+  },
+];
 
 export function Sidebar() {
   const { sidebarOpen, toggleSidebar } = useWorkspaceStore();
   const pathname = usePathname();
   const router = useRouter();
-
-  const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-    { label: 'Projects', icon: FolderKanban, href: '/projects' },
-    { label: 'Settings', icon: Settings, href: '/settings' },
-  ];
 
   const handleLogout = async () => {
     await fetch('/api/v1/auth/logout', { method: 'POST' });
@@ -22,60 +41,126 @@ export function Sidebar() {
     router.refresh();
   };
 
+  const isActive = (href: string) => pathname.startsWith(href);
+
   return (
-    <aside className={`${sidebarOpen ? 'w-[250px]' : 'w-20'} bg-white border-r border-slate-200 transition-all duration-300 flex flex-col`}>
-      <div className="h-16 flex items-center px-4 border-b border-slate-100">
-        {sidebarOpen ? (
-          <div className="flex-1 overflow-hidden">
-            <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-tight">CPM Planner</h1>
-            <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">Scheduling & Analysis</p>
+    <aside
+      className={cn(
+        'flex flex-col shrink-0 h-full',
+        'bg-white border-r border-[#e6e6e6]',
+        'transition-all duration-300 ease-in-out',
+        sidebarOpen ? 'w-[240px]' : 'w-[64px]'
+      )}
+    >
+      {/* ── Logo ─────────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          'h-[64px] flex items-center border-b border-[#e6e6e6] shrink-0',
+          sidebarOpen ? 'px-5 gap-3' : 'justify-center px-0'
+        )}
+      >
+        {/* Icon mark */}
+        <div className="w-8 h-8 rounded-[8px] bg-black flex items-center justify-center shrink-0">
+          <Network size={16} className="text-white" />
+        </div>
+
+        {/* Wordmark */}
+        {sidebarOpen && (
+          <div className="overflow-hidden min-w-0 animate-fade-in">
+            <div className="text-[14px] font-[700] text-[#000000] leading-tight tracking-[-0.25px] whitespace-nowrap">
+              CPM Planner
+            </div>
+            <div className="text-[11px] text-[#a39e98] font-[500] uppercase tracking-[0.125px]">
+              Scheduling & Analysis
+            </div>
           </div>
-        ) : null}
-        <button onClick={toggleSidebar} className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-colors ml-auto flex-shrink-0">
-          <Menu size={16} />
+        )}
+      </div>
+
+      {/* ── Nav ──────────────────────────────────────────────────── */}
+      <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
+        {navItems.map((group) => (
+          <div key={group.group} className="mb-6">
+            {sidebarOpen && (
+              <div className="px-4 pb-2 text-[11px] font-[600] text-[#a39e98] uppercase tracking-[0.125px]">
+                {group.group}
+              </div>
+            )}
+            <ul className="flex flex-col gap-0.5 px-2">
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      title={!sidebarOpen ? item.label : undefined}
+                      className={cn(
+                        'relative flex items-center gap-3 transition-colors duration-150',
+                        'rounded-[8px]',
+                        sidebarOpen ? 'px-3 py-2' : 'justify-center w-10 h-10 mx-auto',
+                        active
+                          ? 'bg-[#ece9e6] text-[#000000]'
+                          : 'text-[#615d59] hover:bg-[#f6f5f4] hover:text-[#000000]'
+                      )}
+                    >
+                      {/* Active indicator strip */}
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-black rounded-r-full" />
+                      )}
+                      <item.icon
+                        size={18}
+                        className="shrink-0"
+                        strokeWidth={active ? 2.2 : 1.8}
+                      />
+                      {sidebarOpen && (
+                        <span className={cn('text-[14px] leading-[1.43]', active ? 'font-[600]' : 'font-[500]')}>
+                          {item.label}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+
+      {/* ── Footer ───────────────────────────────────────────────── */}
+      <div className="border-t border-[#e6e6e6] p-2 space-y-1">
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          title={!sidebarOpen ? 'Logout' : undefined}
+          className={cn(
+            'flex items-center gap-3 transition-colors duration-150 w-full',
+            'rounded-[8px] text-[#615d59] hover:bg-red-50 hover:text-red-600',
+            sidebarOpen ? 'px-3 py-2' : 'justify-center w-10 h-10 mx-auto'
+          )}
+        >
+          <LogOut size={18} className="shrink-0" strokeWidth={1.8} />
+          {sidebarOpen && <span className="text-[14px] font-[500]">Logout</span>}
         </button>
-      </div>
 
-      <div className="flex-1 py-4 flex flex-col gap-6 overflow-y-auto">
-        <nav className="flex flex-col gap-1 px-3">
-          {sidebarOpen && <div className="px-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Workspace</div>}
-          
-          <Link href="/dashboard" className={`group flex items-center gap-3 px-3 py-2 rounded-md transition-colors relative ${pathname.startsWith('/dashboard') ? 'bg-blue-50/80 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-            {pathname.startsWith('/dashboard') && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-600 rounded-r-full" />}
-            <LayoutDashboard size={18} className="shrink-0" />
-            {sidebarOpen && <span className="text-sm">Dashboard</span>}
-          </Link>
-
-          <Link href="/projects" className={`group flex items-center gap-3 px-3 py-2 rounded-md transition-colors relative ${(pathname.startsWith('/projects') && !pathname.startsWith('/settings')) ? 'bg-blue-50/80 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-            {(pathname.startsWith('/projects') && !pathname.startsWith('/settings')) && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-600 rounded-r-full" />}
-            <FolderKanban size={18} className="shrink-0" />
-            {sidebarOpen && <span className="text-sm">Projects</span>}
-          </Link>
-        </nav>
-
-        <nav className="flex flex-col gap-1 px-3">
-          {sidebarOpen && <div className="px-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Administration</div>}
-          
-          <Link href="/settings" className={`group flex items-center gap-3 px-3 py-2 rounded-md transition-colors relative ${pathname.startsWith('/settings') ? 'bg-blue-50/80 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-            {pathname.startsWith('/settings') && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-600 rounded-r-full" />}
-            <Settings size={18} className="shrink-0" />
-            {sidebarOpen && <span className="text-sm">Settings</span>}
-          </Link>
-        </nav>
-      </div>
-
-      <div className="p-3 border-t border-slate-100">
-        <nav className="flex flex-col gap-1">
-          {sidebarOpen && <div className="px-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Account</div>}
-          
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            <LogOut size={18} className="shrink-0" />
-            {sidebarOpen && <span className="text-sm">Logout</span>}
-          </button>
-        </nav>
+        {/* Collapse toggle */}
+        <button
+          onClick={toggleSidebar}
+          title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          className={cn(
+            'flex items-center gap-3 transition-colors duration-150 w-full',
+            'rounded-[8px] text-[#a39e98] hover:bg-[#f6f5f4] hover:text-[#615d59]',
+            sidebarOpen ? 'px-3 py-2' : 'justify-center w-10 h-10 mx-auto'
+          )}
+        >
+          {sidebarOpen ? (
+            <>
+              <ChevronLeft size={18} className="shrink-0" strokeWidth={1.8} />
+              <span className="text-[14px] font-[500]">Collapse</span>
+            </>
+          ) : (
+            <ChevronRight size={18} className="shrink-0" strokeWidth={1.8} />
+          )}
+        </button>
       </div>
     </aside>
   );

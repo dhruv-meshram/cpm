@@ -24,7 +24,14 @@ export async function POST(req: Request) {
 
     const accessToken = await signAccessToken({ userId: payload.userId });
     
-    cookieStore.set('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', path: '/' });
+    cookieStore.set({
+      name: 'accessToken',
+      value: accessToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
 
     return NextResponse.json({ accessToken });
   } catch (error) {

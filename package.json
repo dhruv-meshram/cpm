@@ -8,6 +8,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed:ebaja": "tsx scripts/seed-ebaja-project.ts",
     "db:validate": "prisma validate",
     "db:format": "prisma format",
     "db:test:validation": "tsx database/tests/validation.test.ts",
@@ -31,7 +32,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.9.0"
+    "@prisma/client": "^6.9.0",
+    "fast-xml-parser": "^5.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

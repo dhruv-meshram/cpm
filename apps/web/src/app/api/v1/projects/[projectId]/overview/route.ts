@@ -47,8 +47,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     }
 
     // Fetch Recent Activity
+    const taskIds = project.tasks.map(t => t.id);
     const activitiesData = await prisma.activityLog.findMany({
-      where: { entityType: 'Project', entityId: projectId },
+      where: {
+        OR: [
+          { entityType: 'Project', entityId: projectId },
+          { entityType: 'Task', entityId: { in: taskIds } }
+        ]
+      },
       orderBy: { timestamp: 'desc' },
       take: 10,
       include: {

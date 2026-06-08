@@ -47,7 +47,7 @@ const getStatusColor = (state: string) => {
   switch (state) {
     case 'BACKLOG': return { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' };
     case 'TODO': return { bg: '#e2e8f0', border: '#94a3b8', text: '#334155' };
-    case 'IN_PROGRESS': return { bg: '#dbeafe', border: '#93c5fd', text: '#1d4ed8' };
+    case 'IN_PROGRESS': return { bg: '#fefce8', border: '#eab308', text: '#854d0e' };
     case 'REVIEW': return { bg: '#fef3c7', border: '#fcd34d', text: '#b45309' };
     case 'DONE': return { bg: '#d1fae5', border: '#6ee7b7', text: '#047857' };
     case 'CANCELED': return { bg: '#fef2f2', border: '#fca5a5', text: '#ef4444' };
@@ -196,7 +196,7 @@ export default function GraphPage() {
         <button 
           onClick={() => runCpm.mutate()}
           disabled={runCpm.isPending}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+          className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black/90 transition-colors shadow-sm disabled:opacity-50"
         >
           {runCpm.isPending ? <Activity size={16} className="animate-spin" /> : <Play size={16} />}
           Run CPM Engine
@@ -223,7 +223,7 @@ export default function GraphPage() {
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 mb-4 text-xs border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#f1f5f9] border border-[#cbd5e1]"></div><span className="text-slate-600">Backlog</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#e2e8f0] border border-[#94a3b8]"></div><span className="text-slate-600">Todo</span></div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#dbeafe] border border-[#93c5fd]"></div><span className="text-slate-600">In Progress</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fefce8] border border-[#eab308]"></div><span className="text-slate-600">In Progress</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fef3c7] border border-[#fcd34d]"></div><span className="text-slate-600">Review</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#d1fae5] border border-[#6ee7b7]"></div><span className="text-slate-600">Done</span></div>
               </div>
@@ -252,7 +252,7 @@ export default function GraphPage() {
                   type="checkbox" 
                   checked={showCriticalOnly}
                   onChange={(e) => setShowCriticalOnly(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500"
+                  className="rounded text-black focus:ring-black"
                 />
                 <span className="text-slate-700 font-medium text-sm">Show Critical Path Only</span>
               </label>

@@ -11,7 +11,9 @@ const createTaskSchema = z.object({
   duration: z.number().min(0),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional()
+  state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional(),
+  parentTaskId: z.string().optional(),
+  isCritical: z.boolean().optional()
 });
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -69,7 +71,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { title, description, duration, state, startDate, endDate } = parsed.data;
+    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical } = parsed.data;
 
     const task = await prisma.task.create({
       data: {
@@ -82,9 +84,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         state: state || 'TODO',
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        isDraft: false
+        isDraft: false,
+        parentTaskId: parentTaskId || null
       }
     });
+
+    if (isCritical) {
+      await prisma.taskCustomValue.create({
+        data: {
+          taskId: task.id,
+          key: 'Critical',
+          value: true as any
+        }
+      });
+    }
 
     await logActivity({
       entityType: 'Task',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Search } from 'lucide-react';
 
@@ -174,7 +175,13 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
     }
   });
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const availableTasksForBlockedBy = tasks.filter(t => 
     t.id !== taskToEdit?.id && 
@@ -188,9 +195,9 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
     t.title.toLowerCase().includes(searchBlocks.toLowerCase())
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-full flex flex-col my-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-full flex flex-col my-auto relative">
         
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
@@ -222,7 +229,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                 required 
                 value={title} 
                 onChange={e => setTitle(e.target.value)} 
-                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
                 placeholder="E.g., Design Database Schema"
               />
             </div>
@@ -233,7 +240,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                 value={description} 
                 onChange={e => setDescription(e.target.value)} 
                 rows={3}
-                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-all resize-y"
                 placeholder="Provide task details..."
               />
             </div>
@@ -247,7 +254,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                 step="0.1"
                 value={duration} 
                 onChange={e => setDuration(e.target.value === '' ? '' : Number(e.target.value))} 
-                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
               />
             </div>
           </section>
@@ -262,7 +269,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                   type="date" 
                   value={startDate} 
                   onChange={e => setStartDate(e.target.value)} 
-                  className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
                 />
               </div>
               <div className="space-y-1 flex-1">
@@ -271,7 +278,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                   type="date" 
                   value={endDate} 
                   onChange={e => setEndDate(e.target.value)} 
-                  className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-all"
                 />
               </div>
             </div>
@@ -306,7 +313,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                   value={searchBlockedBy}
                   onChange={e => setSearchBlockedBy(e.target.value)}
                   placeholder="Search tasks..." 
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
                 />
                 {searchBlockedBy && availableTasksForBlockedBy.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -336,9 +343,9 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                 {blocks.map(id => {
                   const t = tasks.find(t => t.id === id);
                   return t ? (
-                    <div key={id} className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-200">
+                    <div key={id} className="flex items-center gap-1.5 bg-[#f6f5f4] text-black px-2.5 py-1 rounded-full text-xs font-medium border border-[#e6e6e6]">
                       <span>{t.title} ({t.duration}d)</span>
-                      <button type="button" onClick={() => setBlocks(prev => prev.filter(p => p !== id))} className="hover:text-blue-900 ml-1">
+                      <button type="button" onClick={() => setBlocks(prev => prev.filter(p => p !== id))} className="hover:text-black/80 ml-1">
                         <X size={12} />
                       </button>
                     </div>
@@ -353,7 +360,7 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
                   value={searchBlocks}
                   onChange={e => setSearchBlocks(e.target.value)}
                   placeholder="Search tasks..." 
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
                 />
                 {searchBlocks && availableTasksForBlocks.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -390,13 +397,14 @@ export function TaskModal({ isOpen, onClose, projectId, taskToEdit }: TaskModalP
           <button 
             onClick={() => saveTask.mutate()}
             disabled={saveTask.isPending}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+            className="px-6 py-2 text-sm font-medium text-white bg-black hover:bg-black/90 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
           >
             {saveTask.isPending ? 'Saving...' : (taskToEdit ? 'Save Changes' : 'Create Task')}
           </button>
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

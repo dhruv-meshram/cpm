@@ -56,7 +56,7 @@ export async function GET(req: Request) {
             }
           },
           tasks: {
-            select: { state: true }
+            select: { id: true, state: true }
           },
           snapshots: {
             orderBy: { calculationTime: 'desc' },
@@ -70,24 +70,33 @@ export async function GET(req: Request) {
       prisma.project.count({ where: whereClause })
     ]);
 
-    let globalTasks = 0;
-    let globalCriticalTasks = 0;
-    let activeProjects = 0;
-    let totalCompletion = 0;
-
-    const enrichedProjects = projectsData.map(p => {
+    const enrichedProjects = await Promise.all(projectsData.map(async (p) => {
       const completedTasks = p.tasks.filter(t => t.state === 'DONE').length;
       const progressPercent = p._count.tasks > 0 ? Math.round((completedTasks / p._count.tasks) * 100) : 0;
       
       const latestSnapshot = p.snapshots[0];
       const projectDuration = latestSnapshot ? (latestSnapshot.projectDuration as any).toNumber?.() || Number(latestSnapshot.projectDuration) || 0 : 0;
-      const criticalPath = latestSnapshot ? (latestSnapshot.criticalPath as any[]) || [] : [];
-      const criticalTasksCount = criticalPath.length;
 
-      globalTasks += p._count.tasks;
-      globalCriticalTasks += criticalTasksCount;
-      if (p.status === 'ACTIVE') activeProjects++;
-      totalCompletion += progressPercent;
+      const taskIds = p.tasks.map(t => t.id);
+      const latestActivityLog = await prisma.activityLog.findFirst({
+        where: {
+          OR: [
+            { entityType: 'Project', entityId: p.id },
+            { entityType: 'Task', entityId: { in: taskIds } }
+          ]
+        },
+        orderBy: { timestamp: 'desc' },
+        select: { timestamp: true }
+      });
+
+      const dates = [p.updatedAt, p.createdAt];
+      if (latestActivityLog?.timestamp) {
+        dates.push(latestActivityLog.timestamp);
+      }
+      if (latestSnapshot?.calculationTime) {
+        dates.push(latestSnapshot.calculationTime);
+      }
+      const latestActivityTime = new Date(Math.max(...dates.map(d => new Date(d).getTime())));
 
       return {
         id: p.id,
@@ -98,26 +107,19 @@ export async function GET(req: Request) {
         health: p.health,
         tasksCount: p._count.tasks,
         dependenciesCount: p._count.dependencies,
-        criticalTasksCount,
         completionPercent: progressPercent,
         durationDays: projectDuration,
-        criticalPathLength: criticalTasksCount,
-        criticalPathDuration: projectDuration,
         owner: p.owner?.name || 'Unassigned',
         createdAt: p.createdAt,
-        updatedAt: p.updatedAt
+        updatedAt: p.updatedAt,
+        latestActivityTime
       };
-    });
+    }));
 
-    const portfolioStats = {
-      totalProjects: total,
-      activeProjects,
-      globalTasks,
-      globalCriticalTasks,
-      portfolioCompletionPercent: total > 0 ? Math.round(totalCompletion / total) : 0
-    };
+    // Sort projects by latest activity time descending
+    enrichedProjects.sort((a, b) => b.latestActivityTime.getTime() - a.latestActivityTime.getTime());
 
-    return NextResponse.json({ data: enrichedProjects, total, portfolioStats });
+    return NextResponse.json({ data: enrichedProjects, total });
   } catch (error) {
     console.error('Fetch projects error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

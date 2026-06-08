@@ -45,8 +45,22 @@ export async function POST(req: Request) {
     const refreshToken = await signRefreshToken({ userId: user.id });
 
     const cookieStore = await cookies();
-    cookieStore.set('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', path: '/' });
-    cookieStore.set('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', path: '/' });
+    cookieStore.set({
+      name: 'accessToken',
+      value: accessToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
+    cookieStore.set({
+      name: 'refreshToken',
+      value: refreshToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
 
     return NextResponse.json({
       accessToken,

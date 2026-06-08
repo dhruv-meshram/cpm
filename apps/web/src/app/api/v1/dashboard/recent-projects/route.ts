@@ -20,15 +20,42 @@ export async function GET(req: Request) {
       },
       orderBy: { updatedAt: 'desc' },
       take: limit,
-      select: {
-        id: true,
-        name: true,
-        identifier: true,
-        updatedAt: true
+      include: {
+        _count: {
+          select: {
+            tasks: true
+          }
+        },
+        tasks: {
+          select: {
+            state: true
+          }
+        }
       }
     });
 
-    return NextResponse.json(recentProjects);
+    const formattedProjects = recentProjects.map(p => {
+      const totalTasks = p._count.tasks;
+      const completedTasks = p.tasks.filter(t => t.state === 'DONE').length;
+      const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      const formatEnum = (str: string) => {
+        if (!str) return '';
+        return str.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      };
+
+      return {
+        id: p.id,
+        name: p.name,
+        identifier: p.identifier,
+        status: formatEnum(p.status) || 'Draft',
+        health: formatEnum(p.health) || 'Healthy',
+        completionPercent: progressPercent,
+        updatedAt: p.updatedAt
+      };
+    });
+
+    return NextResponse.json(formattedProjects);
   } catch (error) {
     console.error('Fetch recent projects error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

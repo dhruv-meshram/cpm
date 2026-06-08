@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
       <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-slate-100">
-        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <div className="w-16 h-16 bg-slate-100 text-black rounded-2xl flex items-center justify-center mx-auto mb-6">
           <FileQuestion size={32} />
         </div>
         
@@ -16,7 +16,7 @@ export default function NotFound() {
 
         <Link
           href="/dashboard"
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-black text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-black/90 transition-colors"
         >
           <Home size={16} />
           Back to Dashboard
