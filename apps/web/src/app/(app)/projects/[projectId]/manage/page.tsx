@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, Archive, CheckCircle, Info, X, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, CheckCircle, Info, X, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Department {
@@ -15,6 +15,14 @@ interface Department {
   sortOrder: number;
   taskCount: number;
   completionPercentage: number;
+}
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  createdAt: string;
+  taskCount: number;
 }
 
 const COLOR_PALETTE = [
@@ -30,25 +38,36 @@ const COLOR_PALETTE = [
   { name: 'Slate', hex: '#64748b' }
 ];
 
-export default function ManageDepartmentsPage() {
+export default function ManageProjectPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const queryClient = useQueryClient();
 
-  // Dialog / Modal States
+  // Active sub-tab
+  const [activeSubTab, setActiveSubTab] = useState<'departments' | 'tags'>('departments');
+
+  // Dialog / Modal States for Departments
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
 
-  // Form States
+  // Dialog / Modal States for Tags
+  const [showCreateTagModal, setShowCreateTagModal] = useState(false);
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
+
+  // Form States for Departments
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formColor, setFormColor] = useState(COLOR_PALETTE[0].hex);
   const [formError, setFormError] = useState<string | null>(null);
   const [fallbackDepId, setFallbackDepId] = useState('');
 
+  // Form States for Tags
+  const [tagNameInput, setTagNameInput] = useState('');
+
   // Fetch departments
-  const { data: departments = [], isLoading } = useQuery<Department[]>({
+  const { data: departments = [], isLoading: isDeptsLoading } = useQuery<Department[]>({
     queryKey: ['departments', projectId],
     queryFn: async () => {
       const res = await fetch(`/api/v1/projects/${projectId}/departments`);
@@ -57,7 +76,17 @@ export default function ManageDepartmentsPage() {
     }
   });
 
-  // Create mutation
+  // Fetch tags
+  const { data: tags = [], isLoading: isTagsLoading } = useQuery<Tag[]>({
+    queryKey: ['tags', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags`);
+      if (!res.ok) throw new Error('Failed to fetch tags');
+      return res.json();
+    }
+  });
+
+  // Create Department mutation
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; description: string; color: string }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/departments`, {
@@ -81,7 +110,7 @@ export default function ManageDepartmentsPage() {
     }
   });
 
-  // Update mutation
+  // Update Department mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Department> }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/departments/${id}`, {
@@ -105,7 +134,7 @@ export default function ManageDepartmentsPage() {
     }
   });
 
-  // Delete mutation
+  // Delete Department mutation
   const deleteMutation = useMutation({
     mutationFn: async ({ id, fallbackId }: { id: string; fallbackId?: string }) => {
       const url = `/api/v1/projects/${projectId}/departments/${id}${fallbackId ? `?fallbackDepartmentId=${fallbackId}` : ''}`;
@@ -120,6 +149,75 @@ export default function ManageDepartmentsPage() {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
       setDeletingDepartment(null);
       setFallbackDepId('');
+    },
+    onError: (err: any) => {
+      alert(err.message);
+    }
+  });
+
+  // Create Tag mutation
+  const createTagMutation = useMutation({
+    mutationFn: async (data: { name: string }) => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.name?.[0] || 'Failed to create tag');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags', projectId] });
+      setShowCreateTagModal(false);
+      setTagNameInput('');
+      setFormError(null);
+    },
+    onError: (err: any) => {
+      setFormError(err.message);
+    }
+  });
+
+  // Update Tag mutation
+  const updateTagMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string } }) => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.name?.[0] || 'Failed to update tag');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      setEditingTag(null);
+      setTagNameInput('');
+      setFormError(null);
+    },
+    onError: (err: any) => {
+      setFormError(err.message);
+    }
+  });
+
+  // Delete Tag mutation
+  const deleteTagMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete tag');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      setDeletingTag(null);
     },
     onError: (err: any) => {
       alert(err.message);
@@ -141,6 +239,12 @@ export default function ManageDepartmentsPage() {
     setFormError(null);
   };
 
+  const handleOpenEditTag = (tag: Tag) => {
+    setEditingTag(tag);
+    setTagNameInput(tag.name);
+    setFormError(null);
+  };
+
   const handleMoveOrder = (dep: Department, direction: 'up' | 'down') => {
     const currentIndex = departments.findIndex(d => d.id === dep.id);
     if (direction === 'up' && currentIndex === 0) return;
@@ -154,145 +258,241 @@ export default function ManageDepartmentsPage() {
     updateMutation.mutate({ id: targetDep.id, data: { sortOrder: dep.sortOrder } });
   };
 
-  if (isLoading) {
+  if (isDeptsLoading || isTagsLoading) {
     return (
       <div className="h-full flex items-center justify-center text-[#615d59]">
-        Loading departments configuration…
+        Loading settings configuration…
       </div>
     );
   }
 
   return (
     <div className="max-w-[1400px] mx-auto px-8 py-8 select-none">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-[20px] font-bold text-black tracking-tight">Project Departments</h2>
-          <p className="text-[13px] text-[#a39e98] mt-1">
-            Organize project tasks into specific departments for specialized tracking and scheduling.
-          </p>
-        </div>
+      
+      {/* Sub-tabs Selection */}
+      <div className="flex gap-2 border-b border-[#e6e6e6] mb-8">
         <button
-          onClick={() => { resetForm(); setShowCreateModal(true); }}
-          className="flex items-center gap-1.5 bg-black hover:bg-black/80 text-white text-[13px] font-semibold px-4 py-2 rounded-lg shadow-sm transition-all"
+          onClick={() => { setActiveSubTab('departments'); setFormError(null); }}
+          className={cn(
+            "px-4 py-2.5 text-[14px] font-[600] border-b-2 transition-colors cursor-pointer",
+            activeSubTab === 'departments' ? "border-black text-black" : "border-transparent text-[#a39e98] hover:text-black"
+          )}
         >
-          <Plus size={16} /> Create Department
+          Departments
+        </button>
+        <button
+          onClick={() => { setActiveSubTab('tags'); setFormError(null); }}
+          className={cn(
+            "px-4 py-2.5 text-[14px] font-[600] border-b-2 transition-colors cursor-pointer",
+            activeSubTab === 'tags' ? "border-black text-black" : "border-transparent text-[#a39e98] hover:text-black"
+          )}
+        >
+          Tags Management
         </button>
       </div>
 
-      {/* Departments Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {departments.map((dep) => (
-          <div
-            key={dep.id}
-            className={cn(
-              "bg-white border border-[#e6e6e6] rounded-xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all relative overflow-hidden",
-              dep.archived && "opacity-60"
-            )}
-          >
-            {/* Department Color Accent Line */}
-            <div
-              className="absolute top-0 left-0 right-0 h-[4px]"
-              style={{ backgroundColor: dep.color }}
-            />
-
+      {activeSubTab === 'departments' ? (
+        <>
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <div className="flex items-center justify-between mt-1 mb-2">
-                <h3 className="font-bold text-[16px] text-black flex items-center gap-2">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: dep.color }}
-                  />
-                  {dep.name}
-                  {dep.archived && (
-                    <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                      Archived
-                    </span>
-                  )}
-                </h3>
-                
-                {/* Actions */}
-                <div className="flex items-center gap-1 text-[#a39e98]">
-                  <button
-                    onClick={() => handleMoveOrder(dep, 'up')}
-                    className="hover:text-black p-1 transition-colors"
-                    title="Move Up"
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleMoveOrder(dep, 'down')}
-                    className="hover:text-black p-1 transition-colors"
-                    title="Move Down"
-                  >
-                    <ArrowDown size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleOpenEdit(dep)}
-                    className="hover:text-black p-1 transition-colors ml-1"
-                    title="Edit Department"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (dep.name === 'General') {
-                        alert('The General department cannot be deleted.');
-                        return;
-                      }
-                      setDeletingDepartment(dep);
-                      setFallbackDepId('');
-                    }}
-                    className={cn(
-                      "p-1 transition-colors ml-1",
-                      dep.name === 'General' ? "opacity-30 cursor-not-allowed" : "hover:text-red-600"
-                    )}
-                    title="Delete Department"
-                    disabled={dep.name === 'General'}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-[13px] text-[#615d59] line-clamp-2 min-h-[40px] mb-4">
-                {dep.description || <span className="italic text-gray-300">No description provided.</span>}
+              <h2 className="text-[20px] font-bold text-black tracking-tight">Project Departments</h2>
+              <p className="text-[13px] text-[#a39e98] mt-1">
+                Organize project tasks into specific departments for specialized tracking and scheduling.
               </p>
             </div>
+            <button
+              onClick={() => { resetForm(); setShowCreateModal(true); }}
+              className="flex items-center gap-1.5 bg-black hover:bg-black/80 text-white text-[13px] font-semibold px-4 py-2 rounded-lg shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={16} /> Create Department
+            </button>
+          </div>
 
-            {/* Statistics Section */}
-            <div className="border-t border-[#f0f0f0] pt-4 mt-2">
-              <div className="flex justify-between items-center text-[12px] text-[#615d59] mb-1.5">
-                <span>Task Progress</span>
-                <span className="font-semibold">{dep.taskCount} {dep.taskCount === 1 ? 'task' : 'tasks'} ({dep.completionPercentage}% Done)</span>
-              </div>
-              <div className="w-full bg-[#f0f0f0] rounded-full h-[6px] overflow-hidden">
+          {/* Departments Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {departments.map((dep) => (
+              <div
+                key={dep.id}
+                className={cn(
+                  "bg-white border border-[#e6e6e6] rounded-xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all relative overflow-hidden",
+                  dep.archived && "opacity-60"
+                )}
+              >
+                {/* Department Color Accent Line */}
                 <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${dep.completionPercentage}%`,
-                    backgroundColor: dep.color
-                  }}
+                  className="absolute top-0 left-0 right-0 h-[4px]"
+                  style={{ backgroundColor: dep.color }}
                 />
+
+                <div>
+                  <div className="flex items-center justify-between mt-1 mb-2">
+                    <h3 className="font-bold text-[16px] text-black flex items-center gap-2">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: dep.color }}
+                      />
+                      {dep.name}
+                      {dep.archived && (
+                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                          Archived
+                        </span>
+                      )}
+                    </h3>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 text-[#a39e98]">
+                      <button
+                        onClick={() => handleMoveOrder(dep, 'up')}
+                        className="hover:text-black p-1 transition-colors cursor-pointer"
+                        title="Move Up"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleMoveOrder(dep, 'down')}
+                        className="hover:text-black p-1 transition-colors cursor-pointer"
+                        title="Move Down"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(dep)}
+                        className="hover:text-black p-1 transition-colors ml-1 cursor-pointer"
+                        title="Edit Department"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (dep.name === 'General') {
+                            alert('The General department cannot be deleted.');
+                            return;
+                          }
+                          setDeletingDepartment(dep);
+                          setFallbackDepId('');
+                        }}
+                        className={cn(
+                          "p-1 transition-colors ml-1 cursor-pointer",
+                          dep.name === 'General' ? "opacity-30 cursor-not-allowed" : "hover:text-red-600"
+                        )}
+                        title="Delete Department"
+                        disabled={dep.name === 'General'}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[13px] text-[#615d59] line-clamp-2 min-h-[40px] mb-4">
+                    {dep.description || <span className="italic text-gray-300">No description provided.</span>}
+                  </p>
+                </div>
+
+                {/* Statistics Section */}
+                <div className="border-t border-[#f0f0f0] pt-4 mt-2">
+                  <div className="flex justify-between items-center text-[12px] text-[#615d59] mb-1.5">
+                    <span>Task Progress</span>
+                    <span className="font-semibold">{dep.taskCount} {dep.taskCount === 1 ? 'task' : 'tasks'} ({dep.completionPercentage}% Done)</span>
+                  </div>
+                  <div className="w-full bg-[#f0f0f0] rounded-full h-[6px] overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${dep.completionPercentage}%`,
+                        backgroundColor: dep.color
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
+            ))}
+
+            {departments.length === 0 && (
+              <div className="col-span-full bg-white border border-dashed border-[#dcdcdc] rounded-xl p-12 text-center text-[#a39e98]">
+                <Info className="mx-auto mb-3" size={24} />
+                No departments configured. Click "Create Department" to get started.
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-[20px] font-bold text-black tracking-tight">Project Tags Library</h2>
+              <p className="text-[13px] text-[#a39e98] mt-1">
+                Define and manage tags to categorize tasks. Tags are shared across the entire project.
+              </p>
             </div>
+            <button
+              onClick={() => { setTagNameInput(''); setFormError(null); setShowCreateTagModal(true); }}
+              className="flex items-center gap-1.5 bg-black hover:bg-black/80 text-white text-[13px] font-semibold px-4 py-2 rounded-lg shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={16} /> Create Tag
+            </button>
           </div>
-        ))}
 
-        {departments.length === 0 && (
-          <div className="col-span-full bg-white border border-dashed border-[#dcdcdc] rounded-xl p-12 text-center text-[#a39e98]">
-            <Info className="mx-auto mb-3" size={24} />
-            No departments configured. Click "Create Department" to get started.
+          {/* Tags Table */}
+          <div className="bg-white border border-[#e6e6e6] rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-[#e6e6e6] text-[#a39e98] text-[11px] font-bold uppercase tracking-wider bg-[#f6f5f4]">
+                  <th className="py-3.5 px-6">Tag Name</th>
+                  <th className="py-3.5 px-6">Tasks Using Tag</th>
+                  <th className="py-3.5 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tags.map((tag) => (
+                  <tr key={tag.id} className="border-b border-[#f0efee] last:border-0 hover:bg-[#f6f5f4]/50 text-[13px] text-black">
+                    <td className="py-4 px-6 font-semibold">
+                      <span className="inline-block px-3 py-1 rounded-full bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6] font-semibold">
+                        {tag.name}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-[#615d59] font-medium">
+                      {tag.taskCount} {tag.taskCount === 1 ? 'task' : 'tasks'}
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="flex justify-end gap-3 text-[#a39e98]">
+                        <button
+                          onClick={() => handleOpenEditTag(tag)}
+                          className="hover:text-black p-1 transition-colors cursor-pointer"
+                          title="Rename Tag"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingTag(tag)}
+                          className="hover:text-red-600 p-1 transition-colors cursor-pointer"
+                          title="Delete Tag"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {tags.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-12 text-center text-[#a39e98] italic bg-white">
+                      No tags created yet. Click "Create Tag" to define your project's first tag.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {/* CREATE MODAL */}
+      {/* DEPARTMENT CREATE MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
             <div className="px-6 py-4 border-b border-[#e6e6e6] flex justify-between items-center bg-[#f6f5f4]">
               <h3 className="font-bold text-black text-[15px]">Create New Department</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-[#a39e98] hover:text-black transition-colors">
+              <button onClick={() => setShowCreateModal(false)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -330,7 +530,7 @@ export default function ManageDepartmentsPage() {
                       key={color.hex}
                       onClick={() => setFormColor(color.hex)}
                       className={cn(
-                        "w-full h-8 rounded-lg transition-transform border border-black/10 flex items-center justify-center",
+                        "w-full h-8 rounded-lg transition-transform border border-black/10 flex items-center justify-center cursor-pointer",
                         formColor === color.hex ? "scale-105 ring-2 ring-black" : "hover:scale-102"
                       )}
                       style={{ backgroundColor: color.hex }}
@@ -344,13 +544,13 @@ export default function ManageDepartmentsPage() {
             <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors"
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => createMutation.mutate({ name: formName, description: formDesc, color: formColor })}
-                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors"
+                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors cursor-pointer"
               >
                 Create
               </button>
@@ -359,13 +559,13 @@ export default function ManageDepartmentsPage() {
         </div>
       )}
 
-      {/* EDIT MODAL */}
+      {/* DEPARTMENT EDIT MODAL */}
       {editingDepartment && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
             <div className="px-6 py-4 border-b border-[#e6e6e6] flex justify-between items-center bg-[#f6f5f4]">
               <h3 className="font-bold text-black text-[15px]">Edit Department</h3>
-              <button onClick={() => setEditingDepartment(null)} className="text-[#a39e98] hover:text-black transition-colors">
+              <button onClick={() => setEditingDepartment(null)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -407,7 +607,7 @@ export default function ManageDepartmentsPage() {
                       key={color.hex}
                       onClick={() => setFormColor(color.hex)}
                       className={cn(
-                        "w-full h-8 rounded-lg transition-transform border border-black/10 flex items-center justify-center",
+                        "w-full h-8 rounded-lg transition-transform border border-black/10 flex items-center justify-center cursor-pointer",
                         formColor === color.hex ? "scale-105 ring-2 ring-black" : "hover:scale-102"
                       )}
                       style={{ backgroundColor: color.hex }}
@@ -423,7 +623,7 @@ export default function ManageDepartmentsPage() {
                   id="archive-checkbox"
                   checked={editingDepartment.archived}
                   onChange={(e) => setEditingDepartment({ ...editingDepartment, archived: e.target.checked })}
-                  className="rounded border-[#dcdcdc] text-black focus:ring-black"
+                  className="rounded border-[#dcdcdc] text-black focus:ring-black cursor-pointer"
                 />
                 <label htmlFor="archive-checkbox" className="text-[13px] font-semibold text-[#615d59] cursor-pointer">
                   Archive this department (hides it from standard views)
@@ -433,7 +633,7 @@ export default function ManageDepartmentsPage() {
             <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
                 onClick={() => setEditingDepartment(null)}
-                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors"
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -447,7 +647,7 @@ export default function ManageDepartmentsPage() {
                     archived: editingDepartment.archived
                   }
                 })}
-                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors"
+                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors cursor-pointer"
               >
                 Save Changes
               </button>
@@ -456,7 +656,7 @@ export default function ManageDepartmentsPage() {
         </div>
       )}
 
-      {/* DELETE DIALOG & FALLBACK TRANSFER */}
+      {/* DEPARTMENT DELETE DIALOG */}
       {deletingDepartment && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
@@ -464,7 +664,7 @@ export default function ManageDepartmentsPage() {
               <h3 className="font-bold text-black text-[15px] flex items-center gap-1.5 text-red-600">
                 <AlertTriangle size={18} /> Delete Department
               </h3>
-              <button onClick={() => setDeletingDepartment(null)} className="text-[#a39e98] hover:text-black transition-colors">
+              <button onClick={() => setDeletingDepartment(null)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -494,14 +694,14 @@ export default function ManageDepartmentsPage() {
             <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
                 onClick={() => setDeletingDepartment(null)}
-                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors"
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => deleteMutation.mutate({ id: deletingDepartment.id })}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-white text-[13px] font-semibold transition-colors",
+                  "px-4 py-2 rounded-lg text-white text-[13px] font-semibold transition-colors cursor-pointer",
                   deletingDepartment.taskCount > 0
                     ? "bg-red-300 cursor-not-allowed opacity-50"
                     : "bg-red-600 hover:bg-red-700"
@@ -514,6 +714,136 @@ export default function ManageDepartmentsPage() {
           </div>
         </div>
       )}
+
+      {/* TAG CREATE MODAL */}
+      {showCreateTagModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#e6e6e6] flex justify-between items-center bg-[#f6f5f4]">
+              <h3 className="font-bold text-black text-[15px]">Create New Tag</h3>
+              <button onClick={() => setShowCreateTagModal(false)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {formError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg">
+                  {formError}
+                </div>
+              )}
+              <div>
+                <label className="block text-[12px] font-bold text-black mb-1.5 uppercase tracking-wider">Tag Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Urgent, Procurement"
+                  value={tagNameInput}
+                  onChange={(e) => setTagNameInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#dcdcdc] rounded-lg text-[13px] focus:ring-1 focus:ring-black focus:outline-hidden"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
+              <button
+                onClick={() => setShowCreateTagModal(false)}
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => createTagMutation.mutate({ name: tagNameInput.trim() })}
+                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors cursor-pointer"
+              >
+                Create Tag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAG EDIT (RENAME) MODAL */}
+      {editingTag && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#e6e6e6] flex justify-between items-center bg-[#f6f5f4]">
+              <h3 className="font-bold text-black text-[15px]">Rename Tag</h3>
+              <button onClick={() => setEditingTag(null)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {formError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg">
+                  {formError}
+                </div>
+              )}
+              <div>
+                <label className="block text-[12px] font-bold text-black mb-1.5 uppercase tracking-wider">Tag Name</label>
+                <input
+                  type="text"
+                  value={tagNameInput}
+                  onChange={(e) => setTagNameInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#dcdcdc] rounded-lg text-[13px] focus:ring-1 focus:ring-black focus:outline-hidden"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
+              <button
+                onClick={() => setEditingTag(null)}
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => updateTagMutation.mutate({ id: editingTag.id, data: { name: tagNameInput.trim() } })}
+                className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAG DELETE DIALOG */}
+      {deletingTag && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-[#e6e6e6] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#e6e6e6] flex justify-between items-center bg-[#f6f5f4]">
+              <h3 className="font-bold text-black text-[15px] flex items-center gap-1.5 text-red-600">
+                <AlertTriangle size={18} /> Delete Tag
+              </h3>
+              <button onClick={() => setDeletingTag(null)} className="text-[#a39e98] hover:text-black transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-[13px] text-[#615d59]">
+                Are you sure you want to delete tag <strong className="text-black">"{deletingTag.name}"</strong>? This will remove the tag from all associated tasks. This action cannot be undone.
+              </p>
+              {deletingTag.taskCount > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+                  Warning: This tag is currently used by {deletingTag.taskCount} {deletingTag.taskCount === 1 ? 'task' : 'tasks'}.
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-[#f6f5f4] border-t border-[#e6e6e6] flex justify-end gap-2">
+              <button
+                onClick={() => setDeletingTag(null)}
+                className="px-4 py-2 rounded-lg text-[13px] font-semibold border border-[#dcdcdc] hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteTagMutation.mutate(deletingTag.id)}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[13px] font-semibold transition-colors cursor-pointer"
+              >
+                Delete Tag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

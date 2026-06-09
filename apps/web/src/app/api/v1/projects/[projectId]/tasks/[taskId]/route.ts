@@ -69,13 +69,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     }
 
     const body = await req.json();
-    const { title, description, duration, state, startDate, endDate, departmentIds } = body;
+    const { title, description, duration, state, startDate, endDate, departmentIds, tagIds } = body;
 
     if (duration !== undefined) {
       if (typeof duration !== 'number' || !Number.isInteger(duration) || duration < 0) {
         return NextResponse.json({ error: 'Duration must be a non-negative integer' }, { status: 400 });
       }
     }
+
+    const existingTags = await prisma.taskTag.findMany({
+      where: { taskId }
+    });
+    const existingTagIds = existingTags.map((et: any) => et.tagId);
 
     const task = await prisma.task.update({
       where: { id: taskId, projectId },
@@ -91,10 +96,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
           departments: {
             set: departmentIds.map((id: string) => ({ id }))
           }
+        }),
+        ...(tagIds !== undefined && {
+          taskTags: {
+            deleteMany: {},
+            create: tagIds.map((id: string) => ({ tagId: id }))
+          }
         })
       },
       include: {
-        departments: true
+        departments: true,
+        taskTags: {
+          include: {
+            tag: true
+          }
+        }
       }
     });
 
@@ -121,6 +137,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     const newEnd = endDate ? new Date(endDate).toISOString().split('T')[0] : '';
     if (endDate !== undefined && newEnd !== oldEnd) {
       changes.push(`end date`);
+    }
+    if (tagIds !== undefined) {
+      const sortedNew = [...tagIds].sort();
+      const sortedOld = [...existingTagIds].sort();
+      const match = sortedNew.length === sortedOld.length && sortedNew.every((val, index) => val === sortedOld[index]);
+      if (!match) {
+        changes.push('tags');
+      }
     }
 
     const actionText = changes.length > 0

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Plus, Clock, Activity, ArrowRightLeft,
-  LayoutGrid, List, Table, ChevronDown, Minimize2,
+  LayoutGrid, List, Table, ChevronDown, Minimize2, Tag, X
 } from 'lucide-react';
 import { TaskSidebar } from '@/components/TaskSidebar';
 import { ButtonPrimary, ButtonUtility, IconButton } from '@/components/ui/Button';
@@ -68,6 +68,18 @@ export default function TasksPage() {
     }
   });
 
+  const { data: tags = [] } = useQuery<any[]>({
+    queryKey: ['tags', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags`);
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    }
+  });
+
+  const [selectedFilterTagIds, setSelectedFilterTagIds] = useState<string[]>([]);
+  const [shouldFocusTags, setShouldFocusTags] = useState(false);
+
   const updateTaskState = useMutation({
     mutationFn: async ({ taskId, state }: { taskId: string; state: string }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
@@ -110,14 +122,15 @@ export default function TasksPage() {
     }
   }, [tasks]);
 
-  const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); };
+  const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); setShouldFocusTags(false); };
 
   const [selectedFilterDeptId, setSelectedFilterDeptId] = useState<string>('ALL');
 
   const filteredTasks = tasks.filter((t: any) => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDept = selectedFilterDeptId === 'ALL' || (t.departments && t.departments.some((d: any) => d.id === selectedFilterDeptId));
-    return matchesSearch && matchesDept;
+    const matchesTags = selectedFilterTagIds.length === 0 || (t.taskTags && selectedFilterTagIds.every((tagId) => t.taskTags.some((tt: any) => tt.tagId === tagId)));
+    return matchesSearch && matchesDept && matchesTags;
   });
 
   const totalTasks = tasks.length;
@@ -158,6 +171,44 @@ export default function TasksPage() {
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
+
+          <select
+            value=""
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val && !selectedFilterTagIds.includes(val)) {
+                setSelectedFilterTagIds(p => [...p, val]);
+              }
+            }}
+            className="px-3 py-1.5 text-xs font-semibold border border-[#e6e6e6] rounded-lg focus:outline-hidden bg-white text-gray-700"
+          >
+            <option value="" disabled hidden>Filter by Tags</option>
+            {tags.filter((t: any) => !selectedFilterTagIds.includes(t.id)).map((t: any) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+
+          {selectedFilterTagIds.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {selectedFilterTagIds.map(tagId => {
+                const tag = tags.find((t: any) => t.id === tagId);
+                return tag ? (
+                  <span key={tagId} className="flex items-center gap-1 bg-white border border-[#e6e6e6] text-[#615d59] text-xs px-2 py-0.5 rounded-full font-semibold">
+                    {tag.name}
+                    <button onClick={() => setSelectedFilterTagIds(p => p.filter(id => id !== tagId))} className="hover:text-black cursor-pointer">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ) : null;
+              })}
+              <button
+                onClick={() => setSelectedFilterTagIds([])}
+                className="text-xs font-semibold text-[#a39e98] hover:text-[#615d59] cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-[#f6f5f4] p-0.5 rounded-[8px] border border-[#e6e6e6] gap-0.5">
@@ -280,7 +331,7 @@ export default function TasksPage() {
                         key={task.id}
                         draggable
                         onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                        onClick={() => { setActiveTask(task); setSidebarMode('edit'); }}
+                        onClick={() => { setActiveTask(task); setSidebarMode('edit'); setShouldFocusTags(false); }}
                         className={cn(
                           'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
                           isOverdue
@@ -323,6 +374,8 @@ export default function TasksPage() {
                           </div>
                         )}
 
+
+
                         <div className="flex items-center justify-between mt-1 pt-2 border-t border-[#f0efee]">
                           <div className="flex items-center gap-2 text-[11px] text-[#a39e98]">
                             <span className="flex items-center gap-1">
@@ -335,8 +388,11 @@ export default function TasksPage() {
                               </span>
                             )}
                           </div>
-                          <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
-                            JD
+                          <div className="flex items-center gap-1.5">
+
+                            <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
+                              JD
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -357,6 +413,7 @@ export default function TasksPage() {
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Duration</th>
                 <th className="py-3 px-4">Department</th>
+
                 <th className="py-3 px-4">Timeline</th>
               </tr>
             </thead>
@@ -409,6 +466,7 @@ export default function TasksPage() {
                         ))}
                       </div>
                     </td>
+
                     <td className="py-3.5 px-4 text-[#a39e98] text-[12px]">
                       {task.startDate ? new Date(task.startDate).toLocaleDateString() : '—'}
                       {' to '}
@@ -437,6 +495,7 @@ export default function TasksPage() {
           projectId={projectId}
           onClose={closeSidebar}
           onDeleted={closeSidebar}
+          shouldFocusTags={shouldFocusTags}
           onSaved={(saved) => {
             closeSidebar();
           }}

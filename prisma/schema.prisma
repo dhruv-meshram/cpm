@@ -126,6 +126,7 @@ model Project {
   snapshots   CPMSnapshot[]
   owner       User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   departments Department[]
+  tags        Tag[]
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
@@ -176,6 +177,7 @@ model Task {
   votes           Vote[]
   nodePosition    NodePosition?
   departments     Department[]   @relation("TaskDepartments")
+  taskTags        TaskTag[]
 
   @@index([projectId])
   @@index([parentTaskId])
@@ -236,6 +238,32 @@ model TaskLabel {
 
   @@id([taskId, labelId])
   @@index([labelId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  projectId String
+  name      String
+  color     String?   @default("#7f8c8d")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     TaskTag[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@index([tagId])
 }
 
 model Comment {

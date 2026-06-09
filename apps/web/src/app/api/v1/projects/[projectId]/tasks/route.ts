@@ -14,7 +14,8 @@ const createTaskSchema = z.object({
   state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional(),
   parentTaskId: z.string().optional(),
   isCritical: z.boolean().optional(),
-  departmentIds: z.array(z.string()).optional()
+  departmentIds: z.array(z.string()).optional(),
+  tagIds: z.array(z.string()).optional()
 });
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -35,7 +36,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     const tasks = await prisma.task.findMany({
       where: { projectId, deletedAt: null },
       include: {
-        departments: true
+        departments: true,
+        taskTags: {
+          include: {
+            tag: true
+          }
+        }
       },
       orderBy: { createdAt: 'asc' }
     });
@@ -71,7 +77,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical, departmentIds } = parsed.data;
+    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical, departmentIds, tagIds } = parsed.data;
 
     let connectDeps = departmentIds && departmentIds.length > 0
       ? departmentIds.map(id => ({ id }))
@@ -109,10 +115,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         parentTaskId: parentTaskId || null,
         departments: {
           connect: connectDeps
-        }
+        },
+        ...(tagIds && tagIds.length > 0 && {
+          taskTags: {
+            create: tagIds.map(tagId => ({ tagId }))
+          }
+        })
       },
       include: {
-        departments: true
+        departments: true,
+        taskTags: {
+          include: {
+            tag: true
+          }
+        }
       }
     });
 

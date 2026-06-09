@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -32,10 +32,11 @@ interface TaskSidebarProps {
   onClose: () => void;
   onDeleted: () => void;
   onSaved: (task: any) => void;
+  shouldFocusTags?: boolean;
 }
 
 export function TaskSidebar({
-  mode, task, projectId, onClose, onDeleted, onSaved,
+  mode, task, projectId, onClose, onDeleted, onSaved, shouldFocusTags = false,
 }: TaskSidebarProps) {
   const queryClient = useQueryClient();
   const [width, setWidth] = useState(480);
@@ -55,6 +56,10 @@ export function TaskSidebar({
   const [searchBlocks, setSearchBlocks] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const tagsInputRef = useRef<HTMLInputElement>(null);
 
   const handleDurationChange = (valStr: string) => {
     const val = valStr === '' ? '' : Math.round(Number(valStr));
@@ -103,7 +108,7 @@ export function TaskSidebar({
     },
   });
 
-  const { data: deps = [] } = useQuery<any[]>({
+  const { data: deps = [], isLoading: isDepsLoading } = useQuery<any[]>({
     queryKey: ['dependencies', projectId],
     queryFn: async () => {
       const r = await fetch(`/api/v1/projects/${projectId}/dependencies`);
@@ -112,7 +117,7 @@ export function TaskSidebar({
     },
   });
 
-  const { data: departments = [] } = useQuery<any[]>({
+  const { data: departments = [], isLoading: isDeptsLoading } = useQuery<any[]>({
     queryKey: ['departments', projectId],
     queryFn: async () => {
       const r = await fetch(`/api/v1/projects/${projectId}/departments`);
@@ -142,8 +147,60 @@ export function TaskSidebar({
   });
   const activities = activityData?.activities || [];
 
+  const { data: projectTags = [] } = useQuery<any[]>({
+    queryKey: ['tags', projectId],
+    queryFn: async () => {
+      const r = await fetch(`/api/v1/projects/${projectId}/tags`);
+      if (!r.ok) throw new Error('Failed to fetch project tags');
+      return r.json();
+    }
+  });
+
+  const createTagMutation = useMutation({
+    mutationFn: async (tagName: string) => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tagName })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error?.name?.[0] || 'Failed to create tag');
+      }
+      return res.json();
+    },
+    onSuccess: (newTag) => {
+      queryClient.invalidateQueries({ queryKey: ['tags', projectId] });
+      setSelectedTagIds(prev => [...prev, newTag.id]);
+      setTagSearchQuery('');
+      setIsTagDropdownOpen(false);
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to create tag');
+    }
+  });
+
+  useEffect(() => {
+    if (shouldFocusTags && tagsInputRef.current) {
+      tagsInputRef.current.focus();
+      tagsInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [shouldFocusTags]);
+
+  const initializedRef = useRef<string | null>(null);
+
+  // Reset initialized ref when task or mode changes
+  useEffect(() => {
+    initializedRef.current = null;
+  }, [mode, task?.id]);
+
   // Populate form when mode/task changes
   useEffect(() => {
+    if (isDepsLoading || isDeptsLoading) return;
+
+    const key = `${mode}-${task?.id || 'new'}`;
+    if (initializedRef.current === key) return;
+
     if (mode === 'edit' && task) {
       setTitle(task.title);
       setDescription(task.description || '');
@@ -154,15 +211,19 @@ export function TaskSidebar({
       setBlockedBy(deps.filter((d: any) => d.successorTaskId === task.id).map((d: any) => d.predecessorTaskId));
       setBlocks(deps.filter((d: any) => d.predecessorTaskId === task.id).map((d: any) => d.successorTaskId));
       setSelectedDeptIds(task.departments ? task.departments.map((d: any) => d.id) : []);
+      setSelectedTagIds(task.taskTags ? task.taskTags.map((tt: any) => tt.tagId) : []);
       setFormError(null);
+      initializedRef.current = key;
     } else if (mode === 'create') {
       setTitle(''); setDescription(''); setDuration(1); setTaskState('TODO');
       setStartDate(''); setEndDate(''); setBlockedBy([]); setBlocks([]);
       const general = departments.find((d: any) => d.name === 'General');
       setSelectedDeptIds(general ? [general.id] : []);
+      setSelectedTagIds([]);
       setFormError(null);
+      initializedRef.current = key;
     }
-  }, [mode, task, deps, departments]);
+  }, [mode, task, deps, departments, isDepsLoading, isDeptsLoading]);
 
   // Resize logic
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -216,7 +277,8 @@ export function TaskSidebar({
           state: taskState,
           startDate: startDate ? new Date(startDate).toISOString() : undefined,
           endDate: endDate ? new Date(endDate).toISOString() : undefined,
-          departmentIds: selectedDeptIds
+          departmentIds: selectedDeptIds,
+          tagIds: selectedTagIds
         }),
       });
       if (!res.ok) throw new Error(`Failed to ${mode === 'edit' ? 'update' : 'create'} task`);
@@ -431,6 +493,109 @@ export function TaskSidebar({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-1.5 relative">
+                <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider block">Tags</label>
+                
+                {/* Assigned Tags pills */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedTagIds.map(tagId => {
+                    const tag = projectTags.find((t: any) => t.id === tagId);
+                    if (!tag) return null;
+                    return (
+                      <span
+                        key={tagId}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6]"
+                      >
+                        {tag.name}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
+                          className="hover:text-black cursor-pointer text-[10px] font-bold text-gray-400"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                  {selectedTagIds.length === 0 && (
+                    <span className="text-xs text-[#a39e98] italic py-1">No tags assigned.</span>
+                  )}
+                </div>
+
+                {/* Add/Search Dropdown */}
+                <div className="relative">
+                  <div className="flex items-center border border-[#e6e6e6] rounded-lg bg-white px-3 py-2">
+                    <Search size={14} className="text-[#a39e98] mr-2" />
+                    <input
+                      ref={tagsInputRef}
+                      type="text"
+                      placeholder="Search or create tags..."
+                      value={tagSearchQuery}
+                      onChange={(e) => {
+                        setTagSearchQuery(e.target.value);
+                        setIsTagDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsTagDropdownOpen(true)}
+                      className="text-sm bg-transparent outline-none w-full text-black placeholder-[#a39e98]"
+                    />
+                    {tagSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setTagSearchQuery('')}
+                        className="text-xs text-gray-400 hover:text-black cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {isTagDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsTagDropdownOpen(false)} />
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                        {projectTags
+                          .filter((t: any) => !selectedTagIds.includes(t.id) && t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
+                          .map((t: any) => (
+                            <div
+                              key={t.id}
+                              onClick={() => {
+                                setSelectedTagIds(prev => [...prev, t.id]);
+                                setTagSearchQuery('');
+                                setIsTagDropdownOpen(false);
+                              }}
+                              className="px-3 py-2 hover:bg-[#f6f5f4] cursor-pointer text-sm font-medium text-black border-b border-[#f0efee] last:border-0 flex justify-between items-center"
+                            >
+                              <span>{t.name}</span>
+                              {t.taskCount > 0 && (
+                                <span className="text-xs text-gray-400">{t.taskCount} tasks</span>
+                              )}
+                            </div>
+                          ))}
+
+                        {tagSearchQuery.trim() !== '' && !projectTags.some((t: any) => t.name.toLowerCase() === tagSearchQuery.trim().toLowerCase()) && (
+                          <div
+                            onClick={() => {
+                              createTagMutation.mutate(tagSearchQuery.trim());
+                            }}
+                            className="px-3 py-2.5 hover:bg-black/5 cursor-pointer text-sm font-semibold text-black bg-gray-50 flex items-center gap-1.5 text-blue-600 border-t border-[#f0efee]"
+                          >
+                            <Plus size={14} />
+                            <span>Create tag "{tagSearchQuery.trim()}"</span>
+                          </div>
+                        )}
+
+                        {tagSearchQuery.trim() === '' && projectTags.filter((t: any) => !selectedTagIds.includes(t.id)).length === 0 && (
+                          <div className="px-3 py-2 text-xs text-[#a39e98] italic text-center">
+                            No other tags available.
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
