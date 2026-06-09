@@ -11,6 +11,7 @@ const tabs = [
   { name: 'Tasks', key: 'tasks' },
   { name: 'Gantt', key: 'gantt' },
   { name: 'Graph', key: 'graph' },
+  { name: 'Manage', key: 'manage' },
 ];
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {

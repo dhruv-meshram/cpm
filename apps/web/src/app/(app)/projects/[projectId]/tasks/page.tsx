@@ -59,6 +59,15 @@ export default function TasksPage() {
     },
   });
 
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ['departments', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/projects/${projectId}/departments`);
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    }
+  });
+
   const updateTaskState = useMutation({
     mutationFn: async ({ taskId, state }: { taskId: string; state: string }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
@@ -86,11 +95,30 @@ export default function TasksPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [sidebarMode]);
 
+  // Handle task direct linking via query parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const taskId = searchParams.get('task');
+      if (taskId && tasks.length > 0) {
+        const found = tasks.find((t: any) => t.id === taskId);
+        if (found) {
+          setActiveTask(found);
+          setSidebarMode('edit');
+        }
+      }
+    }
+  }, [tasks]);
+
   const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); };
 
-  const filteredTasks = tasks.filter((t: any) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [selectedFilterDeptId, setSelectedFilterDeptId] = useState<string>('ALL');
+
+  const filteredTasks = tasks.filter((t: any) => {
+    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDept = selectedFilterDeptId === 'ALL' || (t.departments && t.departments.some((d: any) => d.id === selectedFilterDeptId));
+    return matchesSearch && matchesDept;
+  });
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t: any) => t.state === 'DONE').length;
@@ -120,6 +148,16 @@ export default function TasksPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             containerClassName="w-56"
           />
+          <select
+            value={selectedFilterDeptId}
+            onChange={(e) => setSelectedFilterDeptId(e.target.value)}
+            className="px-3 py-1.5 text-xs font-semibold border border-[#e6e6e6] rounded-lg focus:outline-hidden bg-white text-gray-700"
+          >
+            <option value="ALL">All Departments</option>
+            {departments.map((d: any) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-[#f6f5f4] p-0.5 rounded-[8px] border border-[#e6e6e6] gap-0.5">
@@ -164,135 +202,232 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* Board */}
-      <div className="flex-1 flex gap-4 px-6 py-4 items-stretch min-w-0 overflow-hidden">
-        {COLUMNS.map((col) => {
-          const colTasks = filteredTasks.filter((t: any) => t.state === col.id);
-          const isCollapsed = collapsedCols.has(col.id);
+      {/* Main Content Area based on View Mode */}
+      {viewMode === 'board' ? (
+        <div className="flex-1 flex gap-4 px-6 py-4 items-stretch min-w-0 overflow-hidden">
+          {COLUMNS.map((col) => {
+            const colTasks = filteredTasks.filter((t: any) => t.state === col.id);
+            const isCollapsed = collapsedCols.has(col.id);
 
-          if (isCollapsed) {
+            if (isCollapsed) {
+              return (
+                <div
+                  key={col.id}
+                  className="shrink-0 w-14 bg-white border border-[#e6e6e6] rounded-[12px] flex flex-col items-center py-4 gap-3 cursor-pointer hover:bg-[#f6f5f4] transition-colors h-full"
+                  onClick={() => { const n = new Set(collapsedCols); n.delete(col.id); setCollapsedCols(n); }}
+                >
+                  <span className="text-[11px] font-[700] text-[#615d59] bg-[#f6f5f4] px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                  <div className="text-[12px] font-[600] text-[#615d59]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    {col.label}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={col.id}
-                className="shrink-0 w-14 bg-white border border-[#e6e6e6] rounded-[12px] flex flex-col items-center py-4 gap-3 cursor-pointer hover:bg-[#f6f5f4] transition-colors h-full"
-                onClick={() => { const n = new Set(collapsedCols); n.delete(col.id); setCollapsedCols(n); }}
+                className="flex-1 min-w-0 flex flex-col h-full"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggedTaskId) {
+                    const t = tasks.find((t: any) => t.id === draggedTaskId);
+                    if (t && t.state !== col.id) updateTaskState.mutate({ taskId: draggedTaskId, state: col.id });
+                  }
+                  setDraggedTaskId(null);
+                }}
               >
-                <span className="text-[11px] font-[700] text-[#615d59] bg-[#f6f5f4] px-2 py-0.5 rounded-full">{colTasks.length}</span>
-                <div className="text-[12px] font-[600] text-[#615d59]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-                  {col.label}
+                {/* Column header */}
+                <div className="bg-white border border-[#e6e6e6] rounded-t-[12px] px-4 py-3 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className={cn('w-2 h-2 rounded-full', col.dot)} />
+                    <span className="text-[13px] font-[700] text-black">{col.label}</span>
+                    <span className="text-[11px] font-[600] text-[#a39e98] bg-[#f6f5f4] px-2 py-0.5 rounded-full">
+                      {colTasks.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <IconButton variant="ghost" size="sm" onClick={() => { setActiveTask(null); setSidebarMode('create'); }}>
+                      <Plus size={13} />
+                    </IconButton>
+                    <IconButton
+                      variant="ghost" size="sm"
+                      onClick={() => { const n = new Set(collapsedCols); n.add(col.id); setCollapsedCols(n); }}
+                    >
+                      <Minimize2 size={13} />
+                    </IconButton>
+                  </div>
+                </div>
+
+                {/* Cards */}
+                <div className="flex-1 bg-[#f6f5f4] border-x border-b border-[#e6e6e6] rounded-b-[12px] p-2 flex flex-col gap-2 overflow-y-auto min-h-0">
+                  {colTasks.length === 0 && (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center border border-dashed border-[#e6e6e6] rounded-[8px] bg-white">
+                      <p className="text-[13px] font-[500] text-[#a39e98] mb-3">No tasks</p>
+                      <ButtonUtility variant="ghost" onClick={() => { setActiveTask(null); setSidebarMode('create'); }} className="text-[12px]">
+                        + Create Task
+                      </ButtonUtility>
+                    </div>
+                  )}
+                  {colTasks.map((task: any) => {
+                    const isCritical = cpmResults?.details?.taskDetails?.[task.id]?.isCritical ?? task.isCritical ?? false;
+                    const isInProgress = task.state === 'IN_PROGRESS';
+                    const isOverdue = isTaskOverdue(task);
+
+                    return (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
+                        onClick={() => { setActiveTask(task); setSidebarMode('edit'); }}
+                        className={cn(
+                          'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
+                          isOverdue
+                            ? 'border-l-[3px] border-l-red-500 border-y-[#e6e6e6] border-r-[#e6e6e6] bg-red-50/10'
+                            : isCritical
+                            ? 'border-l-[3px] border-l-[#f64932] border-y-[#e6e6e6] border-r-[#e6e6e6]'
+                            : isInProgress
+                            ? 'border-l-[3px] border-l-amber-500 border-y-amber-200 border-r-amber-200 bg-[#fefce8]'
+                            : 'border-[#e6e6e6] hover:border-black hover:shadow-sm'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-mono text-[#a39e98]">CP-{task.id.slice(0, 4).toUpperCase()}</span>
+                          {isOverdue && (
+                            <span className="text-[9px] font-[700] bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                              Overdue
+                            </span>
+                          )}
+                          {isCritical && (
+                            <span className="text-[9px] font-[700] bg-red-50 text-[#f64932] border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                              Critical
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-[14px] font-[600] text-black leading-snug mb-1">{task.title}</h4>
+
+                        {/* Department badges */}
+                        {task.departments && task.departments.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                            {task.departments.map((d: any) => (
+                              <span
+                                key={d.id}
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] text-white"
+                                style={{ backgroundColor: d.color }}
+                              >
+                                {d.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-1 pt-2 border-t border-[#f0efee]">
+                          <div className="flex items-center gap-2 text-[11px] text-[#a39e98]">
+                            <span className="flex items-center gap-1">
+                              <Clock size={10} className={isCritical ? 'text-[#f64932]' : ''} />
+                              <span className={isCritical ? 'text-[#f64932] font-bold' : ''}>{task.duration}d</span>
+                            </span>
+                            {task.dependencyCount > 0 && (
+                              <span className="flex items-center gap-1">
+                                <ArrowRightLeft size={10} />{task.dependencyCount}
+                              </span>
+                            )}
+                          </div>
+                          <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
+                            JD
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
-          }
-
-          return (
-            <div
-              key={col.id}
-              className="flex-1 min-w-0 flex flex-col h-full"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (draggedTaskId) {
-                  const t = tasks.find((t: any) => t.id === draggedTaskId);
-                  if (t && t.state !== col.id) updateTaskState.mutate({ taskId: draggedTaskId, state: col.id });
-                }
-                setDraggedTaskId(null);
-              }}
-            >
-              {/* Column header */}
-              <div className="bg-white border border-[#e6e6e6] rounded-t-[12px] px-4 py-3 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className={cn('w-2 h-2 rounded-full', col.dot)} />
-                  <span className="text-[13px] font-[700] text-black">{col.label}</span>
-                  <span className="text-[11px] font-[600] text-[#a39e98] bg-[#f6f5f4] px-2 py-0.5 rounded-full">
-                    {colTasks.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <IconButton variant="ghost" size="sm" onClick={() => { setActiveTask(null); setSidebarMode('create'); }}>
-                    <Plus size={13} />
-                  </IconButton>
-                  <IconButton
-                    variant="ghost" size="sm"
-                    onClick={() => { const n = new Set(collapsedCols); n.add(col.id); setCollapsedCols(n); }}
+          })}
+        </div>
+      ) : (
+        <div className="flex-1 px-6 py-4 overflow-y-auto min-h-0 bg-white border border-[#e6e6e6] rounded-[12px] m-6 mt-2 shadow-sm">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-[#e6e6e6] text-[#a39e98] text-[11px] font-bold uppercase tracking-wider">
+                <th className="py-3 px-4">Task ID</th>
+                <th className="py-3 px-4">Task Name</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Duration</th>
+                <th className="py-3 px-4">Department</th>
+                <th className="py-3 px-4">Timeline</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTasks.map((task: any) => {
+                const isOverdue = isTaskOverdue(task);
+                const isCritical = cpmResults?.details?.taskDetails?.[task.id]?.isCritical ?? task.isCritical ?? false;
+                return (
+                  <tr
+                    key={task.id}
+                    onClick={() => { setActiveTask(task); setSidebarMode('edit'); }}
+                    className="border-b border-[#f0efee] hover:bg-[#f6f5f4] cursor-pointer text-[13px] text-black transition-colors"
                   >
-                    <Minimize2 size={13} />
-                  </IconButton>
-                </div>
-              </div>
-
-              {/* Cards */}
-              <div className="flex-1 bg-[#f6f5f4] border-x border-b border-[#e6e6e6] rounded-b-[12px] p-2 flex flex-col gap-2 overflow-y-auto min-h-0">
-                {colTasks.length === 0 && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center border border-dashed border-[#e6e6e6] rounded-[8px] bg-white">
-                    <p className="text-[13px] font-[500] text-[#a39e98] mb-3">No tasks</p>
-                    <ButtonUtility variant="ghost" onClick={() => { setActiveTask(null); setSidebarMode('create'); }} className="text-[12px]">
-                      + Create Task
-                    </ButtonUtility>
-                  </div>
-                )}
-                {colTasks.map((task: any) => {
-                  const isCritical = cpmResults?.details?.taskDetails?.[task.id]?.isCritical ?? task.isCritical ?? false;
-                  const isInProgress = task.state === 'IN_PROGRESS';
-                  const isOverdue = isTaskOverdue(task);
-
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                      onClick={() => { setActiveTask(task); setSidebarMode('edit'); }}
-                      className={cn(
-                        'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
-                        isOverdue
-                          ? 'border-l-[3px] border-l-red-500 border-y-[#e6e6e6] border-r-[#e6e6e6] bg-red-50/10'
-                          : isCritical
-                          ? 'border-l-[3px] border-l-[#f64932] border-y-[#e6e6e6] border-r-[#e6e6e6]'
-                          : isInProgress
-                          ? 'border-l-[3px] border-l-amber-500 border-y-amber-200 border-r-amber-200 bg-[#fefce8]'
-                          : 'border-[#e6e6e6] hover:border-black hover:shadow-sm'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-mono text-[#a39e98]">CP-{task.id.slice(0, 4).toUpperCase()}</span>
+                    <td className="py-3.5 px-4 font-mono text-[#a39e98] text-[11px]">
+                      CP-{task.id.slice(0, 4).toUpperCase()}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold">
+                      <div className="flex items-center gap-2">
+                        {task.title}
                         {isOverdue && (
-                          <span className="text-[9px] font-[700] bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                          <span className="text-[9px] font-bold bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
                             Overdue
                           </span>
                         )}
                         {isCritical && (
-                          <span className="text-[9px] font-[700] bg-red-50 text-[#f64932] border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                          <span className="text-[9px] font-bold bg-red-50 text-[#f64932] border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
                             Critical
                           </span>
                         )}
                       </div>
-
-                      <h4 className="text-[14px] font-[600] text-black leading-snug mb-2">{task.title}</h4>
-
-                      <div className="flex items-center justify-between mt-1 pt-2 border-t border-[#f0efee]">
-                        <div className="flex items-center gap-2 text-[11px] text-[#a39e98]">
-                          <span className="flex items-center gap-1">
-                            <Clock size={10} className={isCritical ? 'text-[#f64932]' : ''} />
-                            <span className={isCritical ? 'text-[#f64932] font-bold' : ''}>{task.duration}d</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
+                        {task.state}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-medium">
+                      {task.duration}d
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {task.departments && task.departments.map((d: any) => (
+                          <span
+                            key={d.id}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: d.color }}
+                          >
+                            {d.name}
                           </span>
-                          {task.dependencyCount > 0 && (
-                            <span className="flex items-center gap-1">
-                              <ArrowRightLeft size={10} />{task.dependencyCount}
-                            </span>
-                          )}
-                        </div>
-                        <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
-                          JD
-                        </div>
+                        ))}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-[#a39e98] text-[12px]">
+                      {task.startDate ? new Date(task.startDate).toLocaleDateString() : '—'}
+                      {' to '}
+                      {task.endDate ? new Date(task.endDate).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredTasks.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-[#a39e98] text-[13px]">
+                    No tasks found matching current filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Right sidebar */}
       {sidebarMode && (

@@ -54,6 +54,7 @@ export function TaskSidebar({
   const [searchBlockedBy, setSearchBlockedBy] = useState('');
   const [searchBlocks, setSearchBlocks] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
 
   const handleDurationChange = (valStr: string) => {
     const val = valStr === '' ? '' : Math.round(Number(valStr));
@@ -111,6 +112,15 @@ export function TaskSidebar({
     },
   });
 
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ['departments', projectId],
+    queryFn: async () => {
+      const r = await fetch(`/api/v1/projects/${projectId}/departments`);
+      if (!r.ok) throw new Error('Failed');
+      return r.json();
+    },
+  });
+
   const { data: cpmResults } = useQuery({
     queryKey: ['cpm', projectId],
     queryFn: async () => {
@@ -119,6 +129,18 @@ export function TaskSidebar({
       return r.json();
     },
   });
+
+  const { data: activityData } = useQuery({
+    queryKey: ['taskActivity', projectId, task?.id],
+    queryFn: async () => {
+      if (!task?.id) return { activities: [] };
+      const r = await fetch(`/api/v1/projects/${projectId}/tasks/${task.id}`);
+      if (!r.ok) throw new Error('Failed to fetch activity');
+      return r.json();
+    },
+    enabled: mode === 'edit' && !!task?.id,
+  });
+  const activities = activityData?.activities || [];
 
   // Populate form when mode/task changes
   useEffect(() => {
@@ -131,13 +153,16 @@ export function TaskSidebar({
       setEndDate(task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : '');
       setBlockedBy(deps.filter((d: any) => d.successorTaskId === task.id).map((d: any) => d.predecessorTaskId));
       setBlocks(deps.filter((d: any) => d.predecessorTaskId === task.id).map((d: any) => d.successorTaskId));
+      setSelectedDeptIds(task.departments ? task.departments.map((d: any) => d.id) : []);
       setFormError(null);
     } else if (mode === 'create') {
       setTitle(''); setDescription(''); setDuration(1); setTaskState('TODO');
       setStartDate(''); setEndDate(''); setBlockedBy([]); setBlocks([]);
+      const general = departments.find((d: any) => d.name === 'General');
+      setSelectedDeptIds(general ? [general.id] : []);
       setFormError(null);
     }
-  }, [mode, task, deps]);
+  }, [mode, task, deps, departments]);
 
   // Resize logic
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -191,6 +216,7 @@ export function TaskSidebar({
           state: taskState,
           startDate: startDate ? new Date(startDate).toISOString() : undefined,
           endDate: endDate ? new Date(endDate).toISOString() : undefined,
+          departmentIds: selectedDeptIds
         }),
       });
       if (!res.ok) throw new Error(`Failed to ${mode === 'edit' ? 'update' : 'create'} task`);
@@ -217,6 +243,7 @@ export function TaskSidebar({
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
       queryClient.invalidateQueries({ queryKey: ['dependencies', projectId] });
       queryClient.invalidateQueries({ queryKey: ['cpm', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['taskActivity', projectId, task?.id] });
       onSaved(saved);
     },
     onError: (err: any) => setFormError(err.message || 'An error occurred'),
@@ -245,6 +272,7 @@ export function TaskSidebar({
     },
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['taskActivity', projectId, task?.id] });
       onSaved(saved);
     },
   });
@@ -366,6 +394,46 @@ export function TaskSidebar({
                 </div>
               </div>
 
+              {/* Department */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider">Department *</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {departments.map((dep: any) => {
+                    const isSelected = selectedDeptIds.includes(dep.id);
+                    return (
+                      <button
+                        key={dep.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDeptIds(prev => {
+                            if (prev.includes(dep.id)) {
+                              if (prev.length === 1) return prev; // At least one must be selected
+                              return prev.filter(id => id !== dep.id);
+                            }
+                            return [...prev, dep.id];
+                          });
+                        }}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1.5",
+                          isSelected
+                            ? "text-white border-transparent"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        )}
+                        style={{
+                          backgroundColor: isSelected ? dep.color : undefined
+                        }}
+                      >
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: isSelected ? '#ffffff' : dep.color }}
+                        />
+                        {dep.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Dates */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider">Scheduling</label>
@@ -456,6 +524,27 @@ export function TaskSidebar({
                   )}
                 </div>
               </div>
+
+              {/* Recent Activity */}
+              {mode === 'edit' && (
+                <div className="space-y-2 pt-4 border-t border-[#e6e6e6]">
+                  <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider block">Recent Activity</label>
+                  {activities.length === 0 ? (
+                    <p className="text-[12px] text-[#a39e98] italic">No activity logged for this task.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                      {activities.map((act: any) => (
+                        <div key={act.id} className="text-xs border-l-2 border-gray-200 pl-2.5 py-0.5">
+                          <p className="text-black font-semibold leading-normal">{act.action}</p>
+                          <p className="text-[#a39e98] text-[10px] mt-0.5">
+                            by <span className="text-[#615d59] font-medium">{act.user}</span> • {new Date(act.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#e6e6e6] bg-[#f6f5f4] flex justify-between items-center shrink-0">

@@ -14,11 +14,16 @@ async function main() {
           identifier: 'CPM-SEED',
           description: 'Minimal DAG for database validation',
           startDate: new Date('2026-01-01T00:00:00Z'),
+          departments: {
+            create: [
+              { id: 'dep-general', name: 'General', color: '#7f8c8d', description: 'General project tasks' },
+            ]
+          },
           tasks: {
             create: [
-              { id: 'A', title: 'Task A', duration: 5, estimatedDays: 5, isDraft: false },
-              { id: 'B', title: 'Task B', duration: 3, estimatedDays: 3, isDraft: false },
-              { id: 'C', title: 'Task C', duration: 2, estimatedDays: 2, isDraft: false },
+              { id: 'A', title: 'Task A', duration: 5, estimatedDays: 5, isDraft: false, departments: { connect: { id: 'dep-general' } } },
+              { id: 'B', title: 'Task B', duration: 3, estimatedDays: 3, isDraft: false, departments: { connect: { id: 'dep-general' } } },
+              { id: 'C', title: 'Task C', duration: 2, estimatedDays: 2, isDraft: false, departments: { connect: { id: 'dep-general' } } },
             ],
           },
         },

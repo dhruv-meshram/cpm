@@ -52,8 +52,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       id: act.id,
       action: act.action,
       entityType: act.entityType,
+      entityId: act.entityId,
       timestamp: act.timestamp,
-      user: act.user?.name || 'System'
+      user: act.user?.name || 'System',
+      projectId: projectId
     }));
 
     return NextResponse.json({

@@ -13,7 +13,8 @@ const createTaskSchema = z.object({
   endDate: z.string().datetime().optional(),
   state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional(),
   parentTaskId: z.string().optional(),
-  isCritical: z.boolean().optional()
+  isCritical: z.boolean().optional(),
+  departmentIds: z.array(z.string()).optional()
 });
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -33,6 +34,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
 
     const tasks = await prisma.task.findMany({
       where: { projectId, deletedAt: null },
+      include: {
+        departments: true
+      },
       orderBy: { createdAt: 'asc' }
     });
 
@@ -67,7 +71,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical } = parsed.data;
+    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical, departmentIds } = parsed.data;
+
+    let connectDeps = departmentIds && departmentIds.length > 0
+      ? departmentIds.map(id => ({ id }))
+      : [];
+
+    if (connectDeps.length === 0) {
+      let generalDep = await prisma.department.findFirst({
+        where: { projectId, name: 'General' }
+      });
+      if (!generalDep) {
+        generalDep = await prisma.department.create({
+          data: {
+            projectId,
+            name: 'General',
+            color: '#7f8c8d',
+            description: 'General project tasks'
+          }
+        });
+      }
+      connectDeps.push({ id: generalDep.id });
+    }
 
     const task = await prisma.task.create({
       data: {
@@ -81,7 +106,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
         isDraft: false,
-        parentTaskId: parentTaskId || null
+        parentTaskId: parentTaskId || null,
+        departments: {
+          connect: connectDeps
+        }
+      },
+      include: {
+        departments: true
       }
     });
 

@@ -266,7 +266,17 @@ export default function DashboardPage() {
                           <span className="text-[13px] font-[600] text-[#000000]">{item.label}</span>
                           <time className="text-[11px] text-[#a39e98] shrink-0">{item.time}</time>
                         </div>
-                        <p className="text-[13px] text-[#615d59] mt-0.5 truncate">{item.desc}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                          {act.entityType === 'Task' && act.projectId && (
+                            <Link
+                              href={`/projects/${act.projectId}/tasks?task=${act.entityId}`}
+                              className="font-mono text-[11px] text-[#615d59] hover:text-[#000000] hover:underline bg-[#f6f5f4] border border-[#e6e6e6] px-1.5 py-0.5 rounded shrink-0"
+                            >
+                              CP-{act.entityId.slice(0, 4).toUpperCase()}
+                            </Link>
+                          )}
+                          <p className="text-[13px] text-[#615d59] truncate flex-1">{item.desc}</p>
+                        </div>
                       </div>
                     </div>
                   );

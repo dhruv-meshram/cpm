@@ -70,9 +70,19 @@ async function run() {
       ownerId: user.id,
       members: {
         create: { userId: user.id, role: 'OWNER' }
+      },
+      departments: {
+        create: [
+          { name: 'General', color: '#7f8c8d', description: 'General project tasks' }
+        ]
       }
+    },
+    include: {
+      departments: true
     }
   });
+
+  const generalDep = project.departments.find(d => d.name === 'General')!;
 
   // 5. Insert tasks
   const idMap = new Map<string, string>();
@@ -95,6 +105,18 @@ async function run() {
   }));
 
   await prisma.task.createMany({ data: tasksToInsert });
+
+  // Link all inserted tasks to General department
+  if (tasksToInsert.length > 0) {
+    const relations = tasksToInsert.map(t => ({
+      A: generalDep.id,
+      B: t.id
+    }));
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "_TaskDepartments" ("A", "B")
+      VALUES ${relations.map(r => `('${r.A}', '${r.B}')`).join(',')}
+    `);
+  }
 
   // 5.1 Insert custom values for critical tasks
   const criticalCustomValues = transformed.tasks

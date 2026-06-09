@@ -130,6 +130,53 @@ export default function OverviewPage() {
           </div>
         </SectionCard>
 
+        {/* 1.5. Department Breakdown */}
+        <SectionCard title="Department Breakdown">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(overview.departments || []).map((d: any) => (
+              <div key={d.id} className="bg-white rounded-xl border border-[#e6e6e6] p-4 flex flex-col justify-between shadow-xs">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-sm font-bold text-black">{d.name}</span>
+                  </div>
+                  <div className="text-[11px] text-[#a39e98] mb-4">
+                    {d.totalTasks} total tasks • {d.completedTasks} completed
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-1 text-[11px] font-semibold text-gray-600">
+                      <span>Completion</span>
+                      <span>{d.progressPercent}%</span>
+                    </div>
+                    <div className="w-full bg-[#f6f5f4] rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-300" style={{ width: `${d.progressPercent}%`, backgroundColor: d.color }} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2 border-t border-[#f0efee] text-[11px] font-medium text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      {d.overdueTasksCount} Overdue
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                      {d.criticalTasksCount} Critical
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {(overview.departments || []).length === 0 && (
+              <div className="col-span-full py-6 text-center text-[#a39e98] text-xs">
+                No departments configured for this project.
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
         {/* 2. Dependency Overview */}
         <SectionCard title="Dependency Overview" action={<Network size={15} className="text-[#a39e98]" />}>
           <div className="flex items-end gap-3 mb-5">
@@ -251,6 +298,14 @@ export default function OverviewPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] text-[#000000] leading-[1.43]">
                       <span className="font-[600]">{act.user}</span>{' '}
+                      {act.entityType === 'Task' && act.projectId && (
+                        <Link
+                          href={`/projects/${act.projectId}/tasks?task=${act.entityId}`}
+                          className="font-mono text-[11px] text-[#615d59] hover:text-[#000000] hover:underline bg-[#f6f5f4] border border-[#e6e6e6] px-1.5 py-0.5 rounded mr-1 inline-block"
+                        >
+                          CP-{act.entityId.slice(0, 4).toUpperCase()}
+                        </Link>
+                      )}
                       <span className="text-[#615d59]">{act.action}</span>
                     </p>
                     <p className="text-[11px] text-[#a39e98] mt-0.5">

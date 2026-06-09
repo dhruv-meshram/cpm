@@ -2,6 +2,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator client_web {
+  provider = "prisma-client-js"
+  output   = "../apps/web/node_modules/.prisma/client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -120,6 +125,7 @@ model Project {
   layouts     GraphLayout[]
   snapshots   CPMSnapshot[]
   owner       User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  departments Department[]
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
@@ -169,6 +175,7 @@ model Task {
   subscriptions   TaskSubscriber[]
   votes           Vote[]
   nodePosition    NodePosition?
+  departments     Department[]   @relation("TaskDepartments")
 
   @@index([projectId])
   @@index([parentTaskId])
@@ -401,4 +408,22 @@ model TaskCustomValue {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  color       String   // hex or Tailwind color (e.g., #000000, red-500)
+  archived    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]   @relation("TaskDepartments")
+
+  @@unique([projectId, name])
+  @@index([projectId])
 }

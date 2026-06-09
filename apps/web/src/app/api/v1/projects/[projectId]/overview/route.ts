@@ -66,7 +66,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       id: act.id,
       user: act.user?.name || 'System',
       action: act.action,
-      timestamp: act.timestamp
+      timestamp: act.timestamp,
+      entityType: act.entityType,
+      entityId: act.entityId,
+      projectId: act.entityType === 'Project' ? act.entityId : projectId
     }));
 
     // Calculate Task Metrics
@@ -108,6 +111,44 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     const projectDuration = latestSnapshot ? (latestSnapshot.projectDuration as any).toNumber?.() || Number(latestSnapshot.projectDuration) || 0 : 0;
     const criticalPath = latestSnapshot ? (latestSnapshot.criticalPath as any[]) || [] : [];
     const criticalTasksCount = criticalPath.length;
+
+    // Fetch departments and calculate stats
+    const depts = await prisma.department.findMany({
+      where: { projectId },
+      include: {
+        tasks: {
+          select: {
+            id: true,
+            state: true,
+            endDate: true
+          }
+        }
+      }
+    });
+
+    const deptStats = depts.map(d => {
+      const dTasks = d.tasks;
+      const dTotal = dTasks.length;
+      const dCompleted = dTasks.filter(t => t.state === 'DONE').length;
+      const dInProgress = dTasks.filter(t => t.state === 'IN_PROGRESS' || t.state === 'REVIEW').length;
+      const dProgressPercent = dTotal > 0 ? Math.round((dCompleted / dTotal) * 100) : 0;
+      const dOverdue = dTasks.filter(t =>
+        t.state !== 'DONE' && (t.state === 'BACKLOG' || (t.endDate && new Date(t.endDate) < new Date()))
+      ).length;
+      const dCritical = dTasks.filter(t => criticalPath.includes(t.id)).length;
+
+      return {
+        id: d.id,
+        name: d.name,
+        color: d.color,
+        totalTasks: dTotal,
+        completedTasks: dCompleted,
+        inProgressTasks: dInProgress,
+        progressPercent: dProgressPercent,
+        overdueTasksCount: dOverdue,
+        criticalTasksCount: dCritical
+      };
+    });
 
     const plannedFinish = project.targetDate;
     let forecastFinish = null;
@@ -168,6 +209,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
         multiplePredecessors,
         multipleSuccessors
       },
+      departments: deptStats,
       activities
     });
 

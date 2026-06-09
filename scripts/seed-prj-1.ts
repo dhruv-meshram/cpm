@@ -8,7 +8,8 @@ async function run() {
 
   // Find project PRJ-1
   const project = await prisma.project.findFirst({
-    where: { identifier: 'PRJ-1' }
+    where: { identifier: 'PRJ-1' },
+    include: { departments: true }
   });
 
   if (!project) {
@@ -18,6 +19,18 @@ async function run() {
 
   const projectId = project.id;
   console.log(`Found Project: ${project.name} (${project.id})`);
+
+  let generalDep = project.departments.find(d => d.name === 'General');
+  if (!generalDep) {
+    generalDep = await prisma.department.create({
+      data: {
+        projectId: project.id,
+        name: 'General',
+        color: '#7f8c8d',
+        description: 'General project tasks'
+      }
+    });
+  }
 
   // Clear existing tasks (dependencies will cascade)
   await prisma.task.deleteMany({
@@ -186,6 +199,18 @@ async function run() {
   // Chunk tasks insertion
   console.log('Inserting tasks...');
   await prisma.task.createMany({ data: tasks });
+
+  // Link all inserted tasks to General department
+  if (tasks.length > 0) {
+    const relations = tasks.map(t => ({
+      A: generalDep!.id,
+      B: t.id
+    }));
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "_TaskDepartments" ("A", "B")
+      VALUES ${relations.map(r => `('${r.A}', '${r.B}')`).join(',')}
+    `);
+  }
 
   console.log('Inserting dependencies...');
   await prisma.dependency.createMany({ data: dependencies });

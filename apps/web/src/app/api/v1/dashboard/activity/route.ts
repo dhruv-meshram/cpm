@@ -40,12 +40,25 @@ export async function GET(req: Request) {
       }
     });
 
+    const taskEntityIds = activities
+      .filter(act => act.entityType === 'Task')
+      .map(act => act.entityId);
+
+    const tasks = await prisma.task.findMany({
+      where: { id: { in: taskEntityIds } },
+      select: { id: true, projectId: true }
+    });
+
+    const taskProjectMap = new Map(tasks.map(t => [t.id, t.projectId]));
+
     const formattedData = activities.map(act => ({
       id: act.id,
       action: act.action,
       entityType: act.entityType,
+      entityId: act.entityId,
       timestamp: act.timestamp,
-      user: act.user?.name || 'System'
+      user: act.user?.name || 'System',
+      projectId: act.entityType === 'Project' ? act.entityId : taskProjectMap.get(act.entityId)
     }));
 
     return NextResponse.json(formattedData);
