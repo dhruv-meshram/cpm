@@ -1,5 +1,6 @@
 import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 const key = new TextEncoder().encode(JWT_SECRET);
@@ -25,17 +26,20 @@ export async function verifyToken(token: string) {
     const { payload } = await jwtVerify(token, key);
     return payload;
   } catch (error: any) {
-    console.error('verifyToken error:', error.message || error);
+    // Token absent or expired — routine, not an actionable server error
+    console.debug('[auth] Token verification failed:', error.message || 'invalid token');
     return null;
   }
 }
 
-export async function getSession() {
+/**
+ * Retrieves the current session from the access token cookie.
+ * Wrapped with React cache() to deduplicate JWT verification
+ * across nested server components in a single request.
+ */
+export const getSession = cache(async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
-  console.log('getSession - accessToken cookie exists:', !!token);
   if (!token) return null;
-  const session = await verifyToken(token);
-  console.log('getSession - verified session:', session);
-  return session;
-}
+  return verifyToken(token);
+});

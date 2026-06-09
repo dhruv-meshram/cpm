@@ -55,16 +55,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
     const membership = await prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId: session.userId as string } }
     });
-    
-    console.log('Task POST Request - projectId:', projectId, 'userId:', session.userId, 'membership:', membership);
 
     if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN' && membership.role !== 'MEMBER')) {
-      console.log('Forbidden! Role was:', membership?.role);
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json();
-    console.log('Task POST Body:', body);
     const parsed = createTaskSchema.safeParse(body);
 
     if (!parsed.success) {

@@ -120,8 +120,8 @@ async function run() {
       const predId = idMap.get(d.predecessorId);
       const succId = idMap.get(t.id);
       
-      if (!predId) {
-         console.warn(`Warning: Orphan dependency reference from Task ${t.name} to missing predecessor ID ${d.predecessorId}`);
+      if (!predId || !succId) {
+         console.warn(`Warning: Orphan dependency reference or missing ID from Task ${t.name} predecessor ID ${d.predecessorId}`);
          continue;
       }
       
