@@ -68,12 +68,30 @@ export async function createTask(data: {
   duration: string | number;
   estimatedDays?: string | number;
 }) {
-  const payload = { id: data.id ?? randomUUID(), projectId: data.projectId, title: data.title, duration: data.duration, estimatedDays: data.estimatedDays };
-  return prismaClient.task.create({ data: payload as any });
+  const durationVal = typeof data.duration === 'string' ? Math.round(Number(data.duration)) : Math.round(data.duration);
+  const estimatedDaysVal = data.estimatedDays !== undefined
+    ? (typeof data.estimatedDays === 'string' ? Math.round(Number(data.estimatedDays)) : Math.round(data.estimatedDays))
+    : undefined;
+
+  const payload = { 
+    id: data.id ?? randomUUID(), 
+    projectId: data.projectId, 
+    title: data.title, 
+    duration: durationVal, 
+    estimatedDays: estimatedDaysVal 
+  };
+  return prismaClient.task.create({ data: payload });
 }
 
 export async function updateTask(taskId: string, updates: Partial<{ title: string; duration: string | number; estimatedDays: string | number }>) {
-  return prismaClient.task.update({ where: { id: taskId }, data: updates as any });
+  const payload: any = { ...updates };
+  if (updates.duration !== undefined) {
+    payload.duration = typeof updates.duration === 'string' ? Math.round(Number(updates.duration)) : Math.round(updates.duration);
+  }
+  if (updates.estimatedDays !== undefined) {
+    payload.estimatedDays = typeof updates.estimatedDays === 'string' ? Math.round(Number(updates.estimatedDays)) : Math.round(updates.estimatedDays);
+  }
+  return prismaClient.task.update({ where: { id: taskId }, data: payload });
 }
 
 export async function deleteTask(taskId: string) {

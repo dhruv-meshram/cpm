@@ -22,6 +22,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     const body = await req.json();
     const { title, description, duration, state, startDate, endDate } = body;
 
+    if (duration !== undefined) {
+      if (typeof duration !== 'number' || !Number.isInteger(duration) || duration < 0) {
+        return NextResponse.json({ error: 'Duration must be a non-negative integer' }, { status: 400 });
+      }
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId, projectId },
       data: {

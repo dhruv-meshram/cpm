@@ -34,7 +34,7 @@ export default function TasksPage() {
   const projectId = params.projectId as string;
   const queryClient = useQueryClient();
 
-  const [sidebarMode, setSidebarMode] = useState<'view' | 'create' | 'edit' | null>(null);
+  const [sidebarMode, setSidebarMode] = useState<'create' | 'edit' | null>(null);
   const [activeTask, setActiveTask] = useState<any | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,13 +88,9 @@ export default function TasksPage() {
 
   const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); };
 
-  const [filterOverdueOnly, setFilterOverdueOnly] = useState(false);
-
-  const filteredTasks = tasks.filter((t: any) => {
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesOverdue = !filterOverdueOnly || isTaskOverdue(t);
-    return matchesSearch && matchesOverdue;
-  });
+  const filteredTasks = tasks.filter((t: any) =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t: any) => t.state === 'DONE').length;
@@ -124,15 +120,6 @@ export default function TasksPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             containerClassName="w-56"
           />
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100/70 transition-colors">
-            <input
-              type="checkbox"
-              checked={filterOverdueOnly}
-              onChange={(e) => setFilterOverdueOnly(e.target.checked)}
-              className="rounded border-red-300 text-red-700 focus:ring-red-500 w-3.5 h-3.5"
-            />
-            Show Overdue Only
-          </label>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-[#f6f5f4] p-0.5 rounded-[8px] border border-[#e6e6e6] gap-0.5">
@@ -254,7 +241,7 @@ export default function TasksPage() {
                       key={task.id}
                       draggable
                       onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                      onClick={() => { setActiveTask(task); setSidebarMode('view'); }}
+                      onClick={() => { setActiveTask(task); setSidebarMode('edit'); }}
                       className={cn(
                         'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
                         isOverdue
@@ -315,11 +302,8 @@ export default function TasksPage() {
           projectId={projectId}
           onClose={closeSidebar}
           onDeleted={closeSidebar}
-          onEditRequest={() => setSidebarMode('edit')}
           onSaved={(saved) => {
-            setActiveTask(saved);
-            setSidebarMode(sidebarMode === 'edit' ? 'view' : null);
-            if (sidebarMode === 'create') setActiveTask(null);
+            closeSidebar();
           }}
         />
       )}

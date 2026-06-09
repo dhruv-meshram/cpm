@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 const createTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  duration: z.number().min(0),
+  duration: z.number().int().min(0),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   state: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELED']).optional(),

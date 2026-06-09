@@ -4,24 +4,38 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  X, Edit2, Trash2, Calendar, ArrowRightLeft, Search, Plus, GripVertical
+  X, Edit2, Trash2, Calendar, ArrowRightLeft, Search, Plus, GripVertical, ArrowRight
 } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/Badge';
 import { ButtonPrimary, IconButton } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
+const addDays = (dateStr: string, days: number): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+};
+
+const diffDays = (startStr: string, endStr: string): number => {
+  if (!startStr || !endStr) return 0;
+  const s = new Date(startStr);
+  const e = new Date(endStr);
+  const diffTime = e.getTime() - s.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
 interface TaskSidebarProps {
-  mode: 'view' | 'create' | 'edit';
+  mode: 'create' | 'edit';
   task: any | null;
   projectId: string;
   onClose: () => void;
   onDeleted: () => void;
-  onEditRequest: () => void;
   onSaved: (task: any) => void;
 }
 
 export function TaskSidebar({
-  mode, task, projectId, onClose, onDeleted, onEditRequest, onSaved,
+  mode, task, projectId, onClose, onDeleted, onSaved,
 }: TaskSidebarProps) {
   const queryClient = useQueryClient();
   const [width, setWidth] = useState(480);
@@ -40,6 +54,42 @@ export function TaskSidebar({
   const [searchBlockedBy, setSearchBlockedBy] = useState('');
   const [searchBlocks, setSearchBlocks] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+
+  const handleDurationChange = (valStr: string) => {
+    const val = valStr === '' ? '' : Math.round(Number(valStr));
+    setDuration(val);
+    if (typeof val === 'number') {
+      if (startDate) {
+        setEndDate(addDays(startDate, val));
+      } else if (endDate) {
+        setStartDate(addDays(endDate, -val));
+      }
+    }
+  };
+
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+    if (val) {
+      if (endDate) {
+        const diff = diffDays(val, endDate);
+        setDuration(diff >= 0 ? diff : 0);
+      } else if (typeof duration === 'number') {
+        setEndDate(addDays(val, duration));
+      }
+    }
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+    if (val) {
+      if (startDate) {
+        const diff = diffDays(startDate, val);
+        setDuration(diff >= 0 ? diff : 0);
+      } else if (typeof duration === 'number') {
+        setStartDate(addDays(val, -duration));
+      }
+    }
+  };
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -217,12 +267,12 @@ export function TaskSidebar({
 
   return createPortal(
     <>
-      {/* Full-screen scrim — clicking closes in view mode */}
+      {/* Full-screen scrim — clicking closes */}
       <div
         className="fixed inset-0 z-[9990]"
-        style={{ background: mode === 'view' ? 'transparent' : 'rgba(0,0,0,0.25)' }}
+        style={{ background: 'rgba(0,0,0,0.25)' }}
         onClick={() => {
-          if (mode !== 'view' && !confirm('Discard unsaved changes?')) return;
+          if (!confirm('Discard unsaved changes?')) return;
           onClose();
         }}
       />
@@ -244,132 +294,20 @@ export function TaskSidebar({
           <div className="w-[3px] h-12 rounded-full bg-[#d0cdc9] group-hover:bg-black/30 transition-colors" />
         </div>
 
-        {/* ─── VIEW MODE ─────────────────────────────────── */}
-        {mode === 'view' && task && (
-          <>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono text-[#a39e98] bg-white px-2 py-0.5 rounded border border-[#e6e6e6]">
-                  CP-{task.id.slice(0, 4).toUpperCase()}
-                </span>
-                {task && (
-                  (() => {
-                    const isOverdue = task.state === 'BACKLOG' || (task.state !== 'DONE' && task.endDate && new Date(task.endDate) < new Date());
-                    return isOverdue ? (
-                      <>
-                        <StatusBadge status="overdue" />
-                        {task.state !== 'BACKLOG' && (
-                          <span className="text-xs text-[#615d59]">({task.state.replace(/_/g, ' ').toLowerCase()})</span>
-                        )}
-                      </>
-                    ) : (
-                      <StatusBadge status={task.state.replace(/_/g, ' ').toLowerCase()} />
-                    );
-                  })()
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <IconButton variant="ghost" onClick={onEditRequest}><Edit2 size={15} /></IconButton>
-                <IconButton variant="ghost" onClick={() => {
-                  if (confirm('Delete this task?')) deleteMutation.mutate();
-                }}>
-                  <Trash2 size={15} className="text-red-500" />
-                </IconButton>
-                <IconButton variant="ghost" onClick={onClose}><X size={15} /></IconButton>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <h2 className="text-[22px] font-[700] text-black leading-snug tracking-tight">{task.title}</h2>
-
-              {task.description && (
-                <div>
-                  <p className="text-xs font-bold text-[#a39e98] uppercase tracking-wider mb-2">Description</p>
-                  <p className="text-[14px] text-[#615d59] bg-[#f6f5f4] p-3 rounded-[8px] border border-[#e6e6e6] leading-relaxed">
-                    {task.description}
-                  </p>
-                </div>
-              )}
-
-              {/* CPM grid */}
-              <div>
-                <p className="text-xs font-bold text-[#a39e98] uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Calendar size={12} /> Scheduling & CPM
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'Duration', value: `${task.duration}d`, red: false },
-                    { label: 'Float', value: `${cpmTask?.slack ?? '–'}d`, red: cpmTask?.isCritical },
-                    { label: 'ES', value: task.startDate ? `${cpmTask?.earlyStart ?? '–'}` : '–' },
-                    { label: 'EF', value: task.startDate ? `${cpmTask?.earlyFinish ?? '–'}` : '–' },
-                    { label: 'LS', value: task.startDate ? `${cpmTask?.lateStart ?? '–'}` : '–' },
-                    { label: 'LF', value: task.startDate ? `${cpmTask?.lateFinish ?? '–'}` : '–' },
-                  ].map(d => (
-                    <div key={d.label} className="bg-[#f6f5f4] border border-[#e6e6e6] rounded-[8px] p-3">
-                      <div className="text-[10px] font-[600] text-[#a39e98] uppercase tracking-wide mb-1">{d.label}</div>
-                      <div className={cn('text-[16px] font-[700]', d.red ? 'text-[#f64932]' : 'text-black')}>{d.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dependencies */}
-              <div>
-                <p className="text-xs font-bold text-[#a39e98] uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <ArrowRightLeft size={12} /> Dependencies
-                </p>
-                <div className="space-y-2">
-                  {predDeps.map((d: any) => {
-                    const pred = tasks.find((t: any) => t.id === d.predecessorTaskId);
-                    return pred ? (
-                      <div key={d.id} className="flex items-center justify-between bg-white border border-[#e6e6e6] rounded-[8px] px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">Pred</span>
-                          <span className="text-sm text-black">{pred.title}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-[#1aae39] bg-[#edf8f0] border border-[#c3e8cc] px-1.5 py-0.5 rounded">FS</span>
-                      </div>
-                    ) : null;
-                  })}
-                  {succDeps.map((d: any) => {
-                    const succ = tasks.find((t: any) => t.id === d.successorTaskId);
-                    return succ ? (
-                      <div key={d.id} className="flex items-center justify-between bg-white border border-[#e6e6e6] rounded-[8px] px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-[#615d59] bg-[#f6f5f4] border border-[#e6e6e6] px-1.5 py-0.5 rounded">Succ</span>
-                          <span className="text-sm text-black">{succ.title}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-[#1aae39] bg-[#edf8f0] border border-[#c3e8cc] px-1.5 py-0.5 rounded">FS</span>
-                      </div>
-                    ) : null;
-                  })}
-                  {predDeps.length === 0 && succDeps.length === 0 && (
-                    <p className="text-xs text-[#a39e98] italic">No dependencies defined.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {task.state !== 'DONE' && (
-              <div className="p-4 border-t border-[#e6e6e6] bg-[#f6f5f4] shrink-0">
-                <ButtonPrimary size="md" className="w-full justify-center" onClick={() => markDoneMutation.mutate()}>
-                  Mark as Complete
-                </ButtonPrimary>
-              </div>
-            )}
-          </>
-        )}
-
         {/* ─── CREATE / EDIT MODE ────────────────────────── */}
         {(mode === 'create' || mode === 'edit') && (
           <>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0">
+            <div className="flex items-center pl-3 pr-6 py-4 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0 gap-2">
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-[4px] hover:bg-black/5 text-[#615d59] transition-colors flex items-center justify-center"
+                title="Collapse sidebar"
+              >
+                <ArrowRight size={18} />
+              </button>
               <h2 className="text-[18px] font-[700] text-black">
                 {mode === 'edit' ? 'Edit Task' : 'New Task'}
               </h2>
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-black/5 text-[#615d59] transition-colors">
-                <X size={18} />
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -408,8 +346,8 @@ export function TaskSidebar({
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider">Duration (days) *</label>
                   <input
-                    type="number" min="0" step="0.5" value={duration}
-                    onChange={e => setDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                    type="number" min="0" step="1" value={duration}
+                    onChange={e => handleDurationChange(e.target.value)}
                     className="w-full px-3 py-2.5 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white"
                   />
                 </div>
@@ -434,13 +372,13 @@ export function TaskSidebar({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] text-[#a39e98] mb-1 block">Start Date</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                    <input type="date" value={startDate} onChange={e => handleStartDateChange(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white"
                     />
                   </div>
                   <div>
                     <label className="text-[11px] text-[#a39e98] mb-1 block">End Date</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                    <input type="date" value={endDate} onChange={e => handleEndDateChange(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white"
                     />
                   </div>
@@ -520,17 +458,30 @@ export function TaskSidebar({
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#e6e6e6] bg-[#f6f5f4] flex justify-end gap-2 shrink-0">
-              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[#615d59] hover:text-black hover:bg-[#e6e6e6] rounded-lg transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                className="px-5 py-2 text-sm font-medium text-white bg-black hover:bg-black/80 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {saveMutation.isPending ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create Task'}
-              </button>
+            <div className="px-6 py-4 border-t border-[#e6e6e6] bg-[#f6f5f4] flex justify-between items-center shrink-0">
+              <div>
+                {mode === 'edit' && (
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete this task?')) deleteMutation.mutate();
+                    }}
+                    disabled={deleteMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Trash2 size={15} />
+                    Delete Task
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || deleteMutation.isPending}
+                  className="px-5 py-2 text-sm font-medium text-white bg-black hover:bg-black/80 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {saveMutation.isPending ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create Task'}
+                </button>
+              </div>
             </div>
           </>
         )}

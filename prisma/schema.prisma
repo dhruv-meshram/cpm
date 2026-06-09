@@ -143,8 +143,8 @@ model Task {
   projectId       String
   title           String
   description     String?
-  duration        Decimal        @db.Decimal(12, 4)
-  estimatedDays   Decimal?       @db.Decimal(12, 4)
+  duration        Int
+  estimatedDays   Int?
   startDate       DateTime?
   endDate         DateTime?
   state           WorkItemState   @default(BACKLOG)

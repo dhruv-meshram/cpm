@@ -15,7 +15,7 @@ export async function run() {
 
   // Foreign key enforcement: create task without project
   try {
-    await prismaClient.task.create({ data: { id: `t-${Date.now()}`, projectId: 'missing', title: 'Orphan', duration: '1' } });
+    await prismaClient.task.create({ data: { id: `t-${Date.now()}`, projectId: 'missing', title: 'Orphan', duration: 1 } });
     throw new Error('Orphan task was allowed');
   } catch (err: any) {
     console.log('Foreign key violation correctly rejected');

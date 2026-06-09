@@ -85,8 +85,8 @@ async function run() {
     projectId: project.id,
     title: t.name,
     description: '',
-    duration: t.durationHours > 0 ? t.durationHours / 24 : 1, // Store as days
-    estimatedDays: t.durationHours > 0 ? t.durationHours / 24 : 1,
+    duration: t.durationHours > 0 ? Math.round(t.durationHours / 24) : 1, // Store as days
+    estimatedDays: t.durationHours > 0 ? Math.round(t.durationHours / 24) : 1,
     startDate: t.start ? new Date(t.start.endsWith('Z') || t.start.includes('+') ? t.start : t.start + 'Z') : null,
     endDate: t.finish ? new Date(t.finish.endsWith('Z') || t.finish.includes('+') ? t.finish : t.finish + 'Z') : null,
     state: 'TODO' as any,
