@@ -389,7 +389,18 @@ export default function TasksPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-1.5">
-
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTask(task);
+                                setSidebarMode('edit');
+                                setShouldFocusTags(true);
+                              }}
+                              className="p-1 rounded-[4px] hover:bg-black/5 text-[#a39e98] hover:text-black transition-colors"
+                              title="Assign tags"
+                            >
+                              <Tag size={12} />
+                            </button>
                             <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
                               JD
                             </div>
