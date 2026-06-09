@@ -43,9 +43,10 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'LR') => {
   return { nodes: newNodes, edges };
 };
 
-const getStatusColor = (state: string) => {
+const getStatusColor = (state: string, isOverdue?: boolean) => {
+  if (isOverdue) return { bg: '#fef2f2', border: '#fca5a5', text: '#ef4444' };
   switch (state) {
-    case 'BACKLOG': return { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' };
+    case 'BACKLOG': return { bg: '#fef2f2', border: '#fca5a5', text: '#ef4444' };
     case 'TODO': return { bg: '#e2e8f0', border: '#94a3b8', text: '#334155' };
     case 'IN_PROGRESS': return { bg: '#fefce8', border: '#eab308', text: '#854d0e' };
     case 'REVIEW': return { bg: '#fef3c7', border: '#fcd34d', text: '#b45309' };
@@ -116,6 +117,8 @@ export default function GraphPage() {
       const details = taskDetails[t.id];
       const isCritical = details?.isCritical || false;
       const opacity = showCriticalOnly && !isCritical ? 0.2 : 1;
+      const isOverdue = t.state === 'BACKLOG' || (t.state !== 'DONE' && t.endDate && new Date(t.endDate) < new Date());
+      const statusColors = getStatusColor(t.state, isOverdue);
       
       return {
         id: t.id,
@@ -128,7 +131,7 @@ export default function GraphPage() {
             }>
               <div className="font-semibold truncate">{t.title}</div>
               <div className="text-xs mt-1 font-medium px-1.5 py-0.5 rounded inline-block bg-white/50 border border-black/5">
-                {t.state}
+                {isOverdue ? `OVERDUE ${t.state !== 'BACKLOG' ? `(${t.state})` : ''}` : t.state}
               </div>
               <div className="text-[10px] opacity-80 mt-1">
                 {t.duration}d {details ? `| Slack: ${details.slack}` : ''}
@@ -137,14 +140,14 @@ export default function GraphPage() {
           )
         },
         style: {
-          background: getStatusColor(t.state).bg,
-          border: isCritical ? '2px solid #ef4444' : `1px solid ${getStatusColor(t.state).border}`,
+          background: statusColors.bg,
+          border: isCritical ? '2px solid #ef4444' : `1px solid ${statusColors.border}`,
           borderRadius: '8px',
           width: nodeWidth,
           padding: '10px',
           fontSize: '12px',
           fontWeight: '500',
-          color: getStatusColor(t.state).text,
+          color: statusColors.text,
           boxShadow: isCritical ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
           opacity,
           transition: 'all 0.3s ease'
@@ -162,15 +165,15 @@ export default function GraphPage() {
         id: d.id,
         source: d.predecessorTaskId,
         target: d.successorTaskId,
-        animated: !isCriticalEdge,
-        label: d.dependencyType,
+        animated: false,
+        label: d.dependencyType?.toUpperCase() === 'FS' ? undefined : d.dependencyType,
         labelBgStyle: { fill: isCriticalEdge ? '#fee2e2' : '#f8fafc' },
         labelStyle: { fill: isCriticalEdge ? '#ef4444' : '#64748b', fontWeight: isCriticalEdge ? 600 : 400 },
         markerEnd: { 
           type: MarkerType.ArrowClosed, 
           color: isCriticalEdge ? '#ef4444' : '#94a3b8',
-          width: isCriticalEdge ? 20 : 15,
-          height: isCriticalEdge ? 20 : 15
+          width: isCriticalEdge ? 10 : 15,
+          height: isCriticalEdge ? 10 : 15
         },
         style: { 
           stroke: isCriticalEdge ? '#ef4444' : '#94a3b8', 
@@ -221,7 +224,7 @@ export default function GraphPage() {
             <h4 className="font-semibold text-slate-800 mb-3">Graph Legend</h4>
             <div className="space-y-2">
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 mb-4 text-xs border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#f1f5f9] border border-[#cbd5e1]"></div><span className="text-slate-600">Backlog</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fef2f2] border border-[#fca5a5]"></div><span className="text-slate-600">Overdue</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#e2e8f0] border border-[#94a3b8]"></div><span className="text-slate-600">Todo</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fefce8] border border-[#eab308]"></div><span className="text-slate-600">In Progress</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#fef3c7] border border-[#fcd34d]"></div><span className="text-slate-600">Review</span></div>

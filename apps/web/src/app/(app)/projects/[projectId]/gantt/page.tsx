@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
-const getGanttStatusColor = (state: string) => {
+const getGanttStatusColor = (state: string, isOverdue: boolean) => {
+  if (isOverdue) return 'bg-red-100 text-red-800 border-red-400';
   switch (state) {
     case 'BACKLOG': 
     case 'TODO': return 'bg-slate-200 text-[#31302e] border-slate-300';
@@ -310,6 +311,7 @@ export default function GanttPage() {
               const width = durationDays * dayWidth;
               const details = cpmResults?.details?.taskDetails?.[task.id];
               const isCritical = details?.isCritical || false;
+              const isOverdue = task.state === 'BACKLOG' || (task.state !== 'DONE' && task.endDate && new Date(task.endDate) < new Date());
               const progress = getProgressForState(task.state);
               const isMilestone = task.duration === 0;
 
@@ -320,15 +322,15 @@ export default function GanttPage() {
                   
                   {isMilestone ? (
                     <div 
-                      className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-800 rotate-45 rounded-sm z-10 cursor-pointer hover:bg-black transition-colors"
+                       className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-800 rotate-45 rounded-sm z-10 cursor-pointer hover:bg-black transition-colors"
                       style={{ left: leftOffset - 12 }}
                       title={`Milestone: ${task.title}`}
                     />
                   ) : (
                     <div 
-                      className={`absolute top-2.5 h-7 rounded shadow-sm flex items-center overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer z-10 ${getGanttStatusColor(task.state)} ${isCritical ? 'ring-2 ring-rose-500 ring-offset-1 ring-offset-white !border-rose-600' : ''}`}
+                      className={`absolute top-2.5 h-7 rounded shadow-sm flex items-center overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer z-10 ${getGanttStatusColor(task.state, isOverdue)} ${isCritical ? 'ring-2 ring-rose-500 ring-offset-1 ring-offset-white !border-rose-600' : ''}`}
                       style={{ left: leftOffset, width: width > 8 ? width - 4 : width }}
-                      title={`Task: ${task.title}\nDuration: ${task.duration}d\nCritical: ${isCritical ? 'Yes' : 'No'}`}
+                      title={`Task: ${task.title}\nDuration: ${task.duration}d\nCritical: ${isCritical ? 'Yes' : 'No'}${isOverdue ? '\nOverdue: Yes' : ''}`}
                     >
                       {/* Progress Fill */}
                       <div className="absolute left-0 top-0 bottom-0 bg-black/10" style={{ width: `${progress}%` }}></div>
@@ -367,6 +369,7 @@ export default function GanttPage() {
         <div className="text-xs font-bold text-[#a39e98] uppercase tracking-wider shrink-0">Legend</div>
         <div className="h-4 w-px bg-slate-200 shrink-0"></div>
         <div className="flex items-center gap-5 text-xs shrink-0">
+          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-100 border border-red-400"></div><span className="text-[#615d59] font-medium">Overdue</span></div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-200 border border-slate-300"></div><span className="text-[#615d59] font-medium">Todo</span></div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-black border border-black"></div><span className="text-[#615d59] font-medium">In Progress</span></div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-amber-400 border border-amber-500"></div><span className="text-[#615d59] font-medium">Review</span></div>

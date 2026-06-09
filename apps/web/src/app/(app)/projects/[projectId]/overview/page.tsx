@@ -178,7 +178,7 @@ export default function OverviewPage() {
             {[
               { label: 'Days Ahead / Behind', value: `${schedule.daysVariance} days`, danger: schedule.daysVariance < 0 },
               { label: 'Tasks Due This Week', value: '0' },
-              { label: 'Overdue Tasks', value: '0', success: true },
+              { label: 'Overdue Tasks', value: overview.metrics.overdueTasksCount || 0, danger: (overview.metrics.overdueTasksCount || 0) > 0, success: (overview.metrics.overdueTasksCount || 0) === 0 },
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between">
                 <span className="text-[13px] text-[#615d59]">{row.label}</span>

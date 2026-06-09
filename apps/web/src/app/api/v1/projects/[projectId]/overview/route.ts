@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       where: { id: projectId },
       include: {
         tasks: {
-          select: { id: true, state: true }
+          select: { id: true, state: true, endDate: true }
         },
         dependencies: {
           select: { predecessorTaskId: true, successorTaskId: true }
@@ -74,6 +74,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     const completedTasks = project.tasks.filter(t => t.state === 'DONE').length;
     const inProgressTasks = project.tasks.filter(t => t.state === 'IN_PROGRESS' || t.state === 'REVIEW').length;
     const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const overdueTasksCount = project.tasks.filter(t =>
+      t.state !== 'DONE' && (t.state === 'BACKLOG' || (t.endDate && new Date(t.endDate) < new Date()))
+    ).length;
 
     // Calculate Dependency Metrics
     const totalDependencies = project.dependencies.length;
@@ -145,6 +148,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
         dependenciesCount: totalDependencies,
         progressPercent,
         projectDuration,
+        overdueTasksCount,
       },
       schedule: {
         plannedFinish,

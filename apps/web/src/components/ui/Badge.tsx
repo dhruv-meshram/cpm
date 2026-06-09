@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 // ── StatusBadge — semantic status pill ───────────────────────────────────────
-type StatusVariant = 'active' | 'completed' | 'delayed' | 'draft' | 'on_hold' | 'cancelled' | 'default';
+type StatusVariant = 'active' | 'completed' | 'delayed' | 'draft' | 'on_hold' | 'cancelled' | 'default' | 'overdue';
 
 const statusStyles: Record<StatusVariant, string> = {
   active:    'bg-[#ece9e6] text-[#000000] border-[#d4d0cc]',
@@ -11,12 +11,14 @@ const statusStyles: Record<StatusVariant, string> = {
   on_hold:   'bg-amber-50 text-amber-700 border-amber-200',
   cancelled: 'bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]',
   default:   'bg-[#f6f5f4] text-[#615d59] border-[#e6e6e6]',
+  overdue:   'bg-red-50 text-red-700 border-red-200 font-bold',
 };
 
 const statusLabels: Record<string, string> = {
   active: 'Active', completed: 'Completed', delayed: 'Delayed',
   draft: 'Draft', on_hold: 'On Hold', cancelled: 'Cancelled',
   'at risk': 'At Risk', warning: 'Warning', healthy: 'Healthy',
+  overdue: 'Overdue', backlog: 'Overdue',
 };
 
 interface StatusBadgeProps {
@@ -25,7 +27,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const key = status.toLowerCase().replace(/\s/g, '_') as StatusVariant;
+  const key_raw = status.toLowerCase().replace(/\s/g, '_');
+  const key = (key_raw === 'backlog' ? 'overdue' : key_raw) as StatusVariant;
   const styles = statusStyles[key] ?? statusStyles.default;
   const label = statusLabels[status.toLowerCase()] ?? status;
 

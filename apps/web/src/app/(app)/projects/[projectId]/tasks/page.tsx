@@ -13,12 +13,21 @@ import { SearchBar } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 const COLUMNS = [
-  { id: 'BACKLOG',     label: 'Backlog',     dot: 'bg-[#a39e98]' },
+  { id: 'BACKLOG',     label: 'Overdue',     dot: 'bg-red-500' },
   { id: 'TODO',        label: 'To Do',       dot: 'bg-[#615d59]' },
   { id: 'IN_PROGRESS', label: 'In Progress', dot: 'bg-yellow-500' },
   { id: 'REVIEW',      label: 'Review',      dot: 'bg-[#dd5b00]' },
   { id: 'DONE',        label: 'Done',        dot: 'bg-[#1aae39]' },
 ];
+
+const isTaskOverdue = (task: any) => {
+  if (task.state === 'DONE') return false;
+  if (task.state === 'BACKLOG') return true;
+  if (task.endDate) {
+    return new Date(task.endDate) < new Date();
+  }
+  return false;
+};
 
 export default function TasksPage() {
   const params = useParams();
@@ -79,9 +88,13 @@ export default function TasksPage() {
 
   const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); };
 
-  const filteredTasks = tasks.filter((t: any) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [filterOverdueOnly, setFilterOverdueOnly] = useState(false);
+
+  const filteredTasks = tasks.filter((t: any) => {
+    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesOverdue = !filterOverdueOnly || isTaskOverdue(t);
+    return matchesSearch && matchesOverdue;
+  });
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t: any) => t.state === 'DONE').length;
@@ -111,6 +124,15 @@ export default function TasksPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             containerClassName="w-56"
           />
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100/70 transition-colors">
+            <input
+              type="checkbox"
+              checked={filterOverdueOnly}
+              onChange={(e) => setFilterOverdueOnly(e.target.checked)}
+              className="rounded border-red-300 text-red-700 focus:ring-red-500 w-3.5 h-3.5"
+            />
+            Show Overdue Only
+          </label>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-[#f6f5f4] p-0.5 rounded-[8px] border border-[#e6e6e6] gap-0.5">
@@ -225,6 +247,7 @@ export default function TasksPage() {
                 {colTasks.map((task: any) => {
                   const isCritical = cpmResults?.details?.taskDetails?.[task.id]?.isCritical ?? task.isCritical ?? false;
                   const isInProgress = task.state === 'IN_PROGRESS';
+                  const isOverdue = isTaskOverdue(task);
 
                   return (
                     <div
@@ -234,7 +257,9 @@ export default function TasksPage() {
                       onClick={() => { setActiveTask(task); setSidebarMode('view'); }}
                       className={cn(
                         'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
-                        isCritical
+                        isOverdue
+                          ? 'border-l-[3px] border-l-red-500 border-y-[#e6e6e6] border-r-[#e6e6e6] bg-red-50/10'
+                          : isCritical
                           ? 'border-l-[3px] border-l-[#f64932] border-y-[#e6e6e6] border-r-[#e6e6e6]'
                           : isInProgress
                           ? 'border-l-[3px] border-l-amber-500 border-y-amber-200 border-r-amber-200 bg-[#fefce8]'
@@ -243,6 +268,11 @@ export default function TasksPage() {
                     >
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10px] font-mono text-[#a39e98]">CP-{task.id.slice(0, 4).toUpperCase()}</span>
+                        {isOverdue && (
+                          <span className="text-[9px] font-[700] bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                            Overdue
+                          </span>
+                        )}
                         {isCritical && (
                           <span className="text-[9px] font-[700] bg-red-50 text-[#f64932] border border-red-200 px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
                             Critical

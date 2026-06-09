@@ -252,7 +252,21 @@ export function TaskSidebar({
                 <span className="text-[11px] font-mono text-[#a39e98] bg-white px-2 py-0.5 rounded border border-[#e6e6e6]">
                   CP-{task.id.slice(0, 4).toUpperCase()}
                 </span>
-                <StatusBadge status={task.state.replace(/_/g, ' ').toLowerCase()} />
+                {task && (
+                  (() => {
+                    const isOverdue = task.state === 'BACKLOG' || (task.state !== 'DONE' && task.endDate && new Date(task.endDate) < new Date());
+                    return isOverdue ? (
+                      <>
+                        <StatusBadge status="overdue" />
+                        {task.state !== 'BACKLOG' && (
+                          <span className="text-xs text-[#615d59]">({task.state.replace(/_/g, ' ').toLowerCase()})</span>
+                        )}
+                      </>
+                    ) : (
+                      <StatusBadge status={task.state.replace(/_/g, ' ').toLowerCase()} />
+                    );
+                  })()
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <IconButton variant="ghost" onClick={onEditRequest}><Edit2 size={15} /></IconButton>
@@ -405,7 +419,7 @@ export function TaskSidebar({
                     value={taskState} onChange={e => setTaskState(e.target.value)}
                     className="w-full px-3 py-2.5 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white"
                   >
-                    <option value="BACKLOG">Backlog</option>
+                    <option value="BACKLOG">Overdue</option>
                     <option value="TODO">To Do</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="REVIEW">Review</option>
