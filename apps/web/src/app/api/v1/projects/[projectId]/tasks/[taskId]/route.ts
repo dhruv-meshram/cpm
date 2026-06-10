@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { logActivity } from '@/lib/activity';
+import { logActivity, formatActivityLog } from '@/lib/activity';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string, taskId: string }> }) {
   try {
@@ -19,6 +19,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true }
+    });
+    const projectName = project?.name || 'Unknown Project';
+
     const activities = await prisma.activityLog.findMany({
       where: {
         entityType: 'Task',
@@ -30,13 +36,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       }
     });
 
+    const approvals = await prisma.taskApproval.findMany({
+      where: { taskId },
+      orderBy: { timestamp: 'desc' },
+      include: {
+        reviewer: {
+          select: { name: true }
+        }
+      }
+    });
+
+    const formattedActivities = activities.map(act => {
+      const formatted = formatActivityLog(act, projectName);
+      formatted.projectId = projectId;
+      return formatted;
+    });
+
     return NextResponse.json({
-      activities: activities.map(act => ({
-        id: act.id,
-        action: act.action,
-        timestamp: act.timestamp,
-        user: act.user?.name || 'System'
-      }))
+      activities: formattedActivities,
+      approvals
     });
   } catch (error) {
     console.error('Fetch task details/activity error:', error);
@@ -69,7 +87,27 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     }
 
     const body = await req.json();
-    const { title, description, duration, state, startDate, endDate, departmentIds, tagIds } = body;
+    const { title, description, duration, state, startDate, endDate, departmentIds, tagIds, assigneeIds } = body;
+
+    if (state === 'DONE' && ['MEMBER'].includes(membership.role.toUpperCase())) {
+      const approved = await prisma.taskApproval.findFirst({
+        where: { taskId, decision: 'APPROVED' }
+      });
+      if (!approved) {
+        return NextResponse.json({ error: 'MEMBER role cannot transition task directly to DONE without approval.' }, { status: 403 });
+      }
+    }
+
+    if (state === 'REVIEW' && existingTask.state !== 'REVIEW') {
+      await prisma.taskApproval.create({
+        data: {
+          taskId,
+          reviewerId: session.userId as string,
+          decision: 'SUBMITTED',
+          comment: 'Task submitted for approval'
+        }
+      });
+    }
 
     if (duration !== undefined) {
       if (typeof duration !== 'number' || !Number.isInteger(duration) || duration < 0) {
@@ -81,6 +119,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       where: { taskId }
     });
     const existingTagIds = existingTags.map((et: any) => et.tagId);
+
+    const existingAssignees = await prisma.taskAssignee.findMany({
+      where: { taskId }
+    });
+    const existingAssigneeIds = existingAssignees.map((a: any) => a.userId);
 
     const task = await prisma.task.update({
       where: { id: taskId, projectId },
@@ -102,6 +145,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
             deleteMany: {},
             create: tagIds.map((id: string) => ({ tagId: id }))
           }
+        }),
+        ...(assigneeIds !== undefined && {
+          assignees: {
+            deleteMany: {},
+            create: assigneeIds.map((userId: string) => ({ userId }))
+          }
         })
       },
       include: {
@@ -109,6 +158,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
         taskTags: {
           include: {
             tag: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           }
         }
       }
@@ -146,6 +206,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
         changes.push('tags');
       }
     }
+    if (assigneeIds !== undefined) {
+      const sortedNew = [...assigneeIds].sort();
+      const sortedOld = [...existingAssigneeIds].sort();
+      const match = sortedNew.length === sortedOld.length && sortedNew.every((val, index) => val === sortedOld[index]);
+      if (!match) {
+        changes.push('assignees');
+      }
+    }
 
     const actionText = changes.length > 0
       ? `Updated: changed ${changes.join(', ')}`
@@ -155,8 +223,69 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       entityType: 'Task',
       entityId: task.id,
       action: actionText,
-      userId: session.userId as string
+      userId: session.userId as string,
+      oldValue: { state: existingTask.state },
+      newValue: { state: task.state }
     });
+
+    const projectInfo = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true }
+    });
+    const projectName = projectInfo?.name || 'a project';
+
+    // 1. Task Assignments
+    if (assigneeIds !== undefined) {
+      const newlyAssignedIds = assigneeIds.filter((id: string) => !existingAssigneeIds.includes(id));
+      for (const userId of newlyAssignedIds) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            projectId,
+            taskId,
+            type: 'TASK_ASSIGNED',
+            title: 'Task Assigned',
+            content: `You have been assigned to the task "${task.title}" in project "${projectName}".`
+          }
+        });
+      }
+    }
+
+    // 2. Task Status Changes
+    if (state && state !== existingTask.state) {
+      const currentAssigneeIds = assigneeIds !== undefined ? assigneeIds : existingAssigneeIds;
+      const notifyUsers = currentAssigneeIds.filter((id: string) => id !== session.userId);
+      for (const userId of notifyUsers) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            projectId,
+            taskId,
+            type: 'TASK_STATUS_CHANGE',
+            title: 'Task Status Changed',
+            content: `The status of your assigned task "${task.title}" in project "${projectName}" was changed from "${existingTask.state}" to "${state}".`
+          }
+        });
+      }
+    }
+
+    // 3. Task Modifications
+    if (changes.length > 0) {
+      const currentAssigneeIds = assigneeIds !== undefined ? assigneeIds : existingAssigneeIds;
+      const notifyUsers = currentAssigneeIds.filter((id: string) => id !== session.userId);
+      for (const userId of notifyUsers) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            projectId,
+            taskId,
+            type: 'TASK_MODIFICATION',
+            title: 'Task Updated',
+            content: `The task "${task.title}" you are assigned to in project "${projectName}" has been updated. Changes: ${changes.join(', ')}.`
+          }
+        });
+      }
+    }
 
     return NextResponse.json(task);
   } catch (error) {

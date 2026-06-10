@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
+import { prisma } from './prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 const key = new TextEncoder().encode(JWT_SECRET);
@@ -41,5 +42,20 @@ export const getSession = cache(async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
   if (!token) return null;
-  return verifyToken(token);
+  
+  const payload = await verifyToken(token);
+  if (!payload || !payload.userId) return null;
+
+  try {
+    const userExists = await prisma.user.findUnique({
+      where: { id: payload.userId as string },
+      select: { id: true }
+    });
+    if (!userExists) return null;
+  } catch (error) {
+    console.error('[auth] Database user validation failed:', error);
+    return null;
+  }
+
+  return payload;
 });

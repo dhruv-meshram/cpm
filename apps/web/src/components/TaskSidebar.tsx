@@ -9,6 +9,7 @@ import {
 import { StatusBadge } from '@/components/ui/Badge';
 import { ButtonPrimary, IconButton } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { ActivityItem } from '@/components/ui/ActivityItem';
 
 const addDays = (dateStr: string, days: number): string => {
   if (!dateStr) return '';
@@ -57,7 +58,9 @@ export function TaskSidebar({
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const tagsInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,6 +159,24 @@ export function TaskSidebar({
     }
   });
 
+  const { data: members = [] } = useQuery<any[]>({
+    queryKey: ['members', projectId],
+    queryFn: async () => {
+      const r = await fetch(`/api/v1/projects/${projectId}/members`);
+      if (!r.ok) throw new Error('Failed to fetch members');
+      return r.json();
+    }
+  });
+
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      const r = await fetch('/api/v1/users/me');
+      if (!r.ok) throw new Error('Failed to fetch current user');
+      return r.json();
+    }
+  });
+
   const createTagMutation = useMutation({
     mutationFn: async (tagName: string) => {
       const res = await fetch(`/api/v1/projects/${projectId}/tags`, {
@@ -212,6 +233,7 @@ export function TaskSidebar({
       setBlocks(deps.filter((d: any) => d.predecessorTaskId === task.id).map((d: any) => d.successorTaskId));
       setSelectedDeptIds(task.departments ? task.departments.map((d: any) => d.id) : []);
       setSelectedTagIds(task.taskTags ? task.taskTags.map((tt: any) => tt.tagId) : []);
+      setSelectedAssigneeIds(task.assignees ? task.assignees.map((a: any) => a.userId) : []);
       setFormError(null);
       initializedRef.current = key;
     } else if (mode === 'create') {
@@ -220,6 +242,7 @@ export function TaskSidebar({
       const general = departments.find((d: any) => d.name === 'General');
       setSelectedDeptIds(general ? [general.id] : []);
       setSelectedTagIds([]);
+      setSelectedAssigneeIds([]);
       setFormError(null);
       initializedRef.current = key;
     }
@@ -278,7 +301,8 @@ export function TaskSidebar({
           startDate: startDate ? new Date(startDate).toISOString() : undefined,
           endDate: endDate ? new Date(endDate).toISOString() : undefined,
           departmentIds: selectedDeptIds,
-          tagIds: selectedTagIds
+          tagIds: selectedTagIds,
+          assigneeIds: selectedAssigneeIds
         }),
       });
       if (!res.ok) throw new Error(`Failed to ${mode === 'edit' ? 'update' : 'create'} task`);
@@ -338,6 +362,34 @@ export function TaskSidebar({
       onSaved(saved);
     },
   });
+
+  const submitApprovalMutation = useMutation({
+    mutationFn: async (decision: 'APPROVED' | 'REJECTED') => {
+      const res = await fetch(`/api/v1/projects/${projectId}/tasks/${task.id}/approval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, comment: reviewComment })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to submit review');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['taskActivity', projectId, task?.id] });
+      setReviewComment('');
+      onSaved(data.task);
+    },
+    onError: (err: any) => {
+      alert(err.message);
+    }
+  });
+
+  const currentMember = currentUser && members.find((m: any) => m.userId === currentUser.id);
+  const canReview = currentUser && currentMember && ['PROJECT_ADMIN', 'ADMIN', 'PROJECT MANAGER', 'PROJECT_MANAGER', 'DEPARTMENT_HEAD', 'CAPTAIN'].includes(currentMember.role.toUpperCase().replace(' ', '_'));
+  const approvals = activityData?.approvals || [];
 
   if (!mounted) return null;
 
@@ -456,6 +508,91 @@ export function TaskSidebar({
                 </div>
               </div>
 
+              {/* Approval Workflow Widget */}
+              {(taskState === 'REVIEW' || approvals.length > 0) && (
+                <div className="p-4 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-black uppercase tracking-wider">Approval Workflow</span>
+                    <span className={cn(
+                      "text-[11px] font-bold px-2 py-0.5 rounded-full border",
+                      taskState === 'REVIEW'
+                        ? "bg-amber-50 border-amber-200 text-amber-700"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    )}>
+                      {taskState === 'REVIEW' ? 'Pending Approval' : 'Approved & Closed'}
+                    </span>
+                  </div>
+
+                  {/* Review Actions for Authorized Roles */}
+                  {taskState === 'REVIEW' && canReview && (
+                    <div className="space-y-3 pt-2 border-t border-[#e6e6e6]">
+                      <p className="text-[12px] text-[#615d59] font-medium">
+                        You have permissions to review this task. Please submit your decision:
+                      </p>
+                      <div>
+                        <textarea
+                          placeholder="Add review feedback or notes..."
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          rows={2}
+                          className="w-full px-2.5 py-1.5 text-xs border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-1 focus:ring-black transition-all bg-white resize-none text-black"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => submitApprovalMutation.mutate('APPROVED')}
+                          disabled={submitApprovalMutation.isPending}
+                          className="flex-1 bg-black text-white hover:bg-black/90 text-xs font-semibold py-2 rounded-lg border border-black transition-colors cursor-pointer"
+                        >
+                          Approve & Done
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => submitApprovalMutation.mutate('REJECTED')}
+                          disabled={submitApprovalMutation.isPending}
+                          className="flex-1 bg-white text-red-600 hover:bg-red-50 text-xs font-semibold py-2 rounded-lg border border-red-200 transition-colors cursor-pointer"
+                        >
+                          Reject & Rework
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Historic Approvals log */}
+                  {approvals.length > 0 && (
+                    <div className="space-y-2.5 pt-2 border-t border-[#e6e6e6]">
+                      <div className="text-[11px] font-bold text-[#615d59] uppercase tracking-wider">Review History</div>
+                      <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                        {approvals.map((app: any) => (
+                          <div key={app.id} className="text-xs bg-white p-2 rounded-lg border border-[#e6e6e6] space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-black">{app.reviewer?.name || 'Reviewer'}</span>
+                              <span className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.2 rounded border",
+                                app.decision === 'APPROVED' && "bg-emerald-50 border-emerald-200 text-emerald-700",
+                                app.decision === 'REJECTED' && "bg-red-50 border-red-200 text-red-700",
+                                app.decision === 'SUBMITTED' && "bg-blue-50 border-blue-200 text-blue-700"
+                              )}>
+                                {app.decision}
+                              </span>
+                            </div>
+                            {app.comment && (
+                              <p className="text-[#615d59] italic text-[11px] bg-[#f6f5f4] p-1.5 rounded-sm">
+                                "{app.comment}"
+                              </p>
+                            )}
+                            <span className="text-[10px] text-[#a39e98] block">
+                              {new Date(app.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Department */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider">Department *</label>
@@ -493,6 +630,64 @@ export function TaskSidebar({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Assignees */}
+              <div className="space-y-1.5 relative">
+                <label className="text-xs font-bold text-[#615d59] uppercase tracking-wider block">Assignees</label>
+                
+                {/* Assigned Members pills */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedAssigneeIds.map(userId => {
+                    const member = members.find((m: any) => m.userId === userId);
+                    if (!member) return null;
+                    const initials = member.user.name.split(' ').map((n: any) => n[0]).slice(0, 2).join('').toUpperCase();
+                    return (
+                      <span
+                        key={userId}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#f6f5f4] text-black border border-[#e6e6e6]"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-white border border-[#e6e6e6] flex items-center justify-center text-[10px] font-bold text-[#615d59] shrink-0">
+                          {initials}
+                        </span>
+                        {member.user.name}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAssigneeIds(prev => prev.filter(id => id !== userId))}
+                          className="hover:text-black cursor-pointer text-[10px] font-bold text-gray-400"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                  {selectedAssigneeIds.length === 0 && (
+                    <span className="text-xs text-[#a39e98] italic py-1">No one assigned yet.</span>
+                  )}
+                </div>
+
+                {/* Dropdown to assign members */}
+                <div className="relative">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val && !selectedAssigneeIds.includes(val)) {
+                        setSelectedAssigneeIds(prev => [...prev, val]);
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white text-gray-500"
+                  >
+                    <option value="">+ Assign Team Member...</option>
+                    {members
+                      .filter((m: any) => !selectedAssigneeIds.includes(m.userId))
+                      .map((m: any) => (
+                        <option key={m.userId} value={m.userId}>
+                          {m.user.name} ({m.role})
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
 
@@ -697,14 +892,22 @@ export function TaskSidebar({
                   {activities.length === 0 ? (
                     <p className="text-[12px] text-[#a39e98] italic">No activity logged for this task.</p>
                   ) : (
-                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                    <div className="max-h-60 overflow-y-auto border border-[#e6e6e6] rounded-lg divide-y divide-[#e6e6e6] scrollbar-thin">
                       {activities.map((act: any) => (
-                        <div key={act.id} className="text-xs border-l-2 border-gray-200 pl-2.5 py-0.5">
-                          <p className="text-black font-semibold leading-normal">{act.action}</p>
-                          <p className="text-[#a39e98] text-[10px] mt-0.5">
-                            by <span className="text-[#615d59] font-medium">{act.user}</span> • {new Date(act.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
+                        <ActivityItem
+                          key={act.id}
+                          action={act.action}
+                          actor={act.actorName}
+                          timestamp={act.createdAt}
+                          projectId={projectId}
+                          taskId={act.taskId}
+                          taskCode={act.taskCode}
+                          sourceTaskId={act.sourceTaskId}
+                          sourceTaskCode={act.sourceTaskCode}
+                          targetTaskId={act.targetTaskId}
+                          targetTaskCode={act.targetTaskCode}
+                          minimal
+                        />
                       ))}
                     </div>
                   )}

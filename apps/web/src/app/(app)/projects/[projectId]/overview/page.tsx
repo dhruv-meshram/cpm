@@ -14,6 +14,7 @@ import { SectionCard } from '@/components/ui/Card';
 import { ButtonPrimary, ButtonUtility } from '@/components/ui/Button';
 import { HealthDot, ProgressBar } from '@/components/ui/Badge';
 import { SkeletonMetricCard } from '@/components/ui/Skeleton';
+import { ActivityItem } from '@/components/ui/ActivityItem';
 
 export default function OverviewPage() {
   const params = useParams();
@@ -291,28 +292,19 @@ export default function OverviewPage() {
           ) : (
             <div className="divide-y divide-[#e6e6e6] max-h-[350px] overflow-y-auto scrollbar-thin">
               {activities.map((act: any) => (
-                <div key={act.id} className="px-5 py-3 flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center shrink-0 text-[13px] font-[700] border border-[#e6e6e6]">
-                    {act.user.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-[#000000] leading-[1.43]">
-                      <span className="font-[600]">{act.user}</span>{' '}
-                      {act.entityType === 'Task' && act.projectId && (
-                        <Link
-                          href={`/projects/${act.projectId}/tasks?task=${act.entityId}`}
-                          className="font-mono text-[11px] text-[#615d59] hover:text-[#000000] hover:underline bg-[#f6f5f4] border border-[#e6e6e6] px-1.5 py-0.5 rounded mr-1 inline-block"
-                        >
-                          CP-{act.entityId.slice(0, 4).toUpperCase()}
-                        </Link>
-                      )}
-                      <span className="text-[#615d59]">{act.action}</span>
-                    </p>
-                    <p className="text-[11px] text-[#a39e98] mt-0.5">
-                      {format(new Date(act.timestamp), 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                </div>
+                <ActivityItem
+                  key={act.id}
+                  action={act.action}
+                  actor={act.actorName}
+                  timestamp={act.createdAt}
+                  projectId={act.projectId}
+                  taskId={act.taskId}
+                  taskCode={act.taskCode}
+                  sourceTaskId={act.sourceTaskId}
+                  sourceTaskCode={act.sourceTaskCode}
+                  targetTaskId={act.targetTaskId}
+                  targetTaskCode={act.targetTaskCode}
+                />
               ))}
             </div>
           )}

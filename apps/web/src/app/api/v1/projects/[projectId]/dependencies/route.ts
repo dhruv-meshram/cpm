@@ -62,7 +62,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       entityType: 'Project',
       entityId: projectId,
       action: `Dependency added: Task ${predecessorTaskId} -> Task ${successorTaskId}`,
-      userId: session.userId as string
+      userId: session.userId as string,
+      oldValue: { predecessorTaskId, successorTaskId },
+      newValue: { predecessorTaskId, successorTaskId }
     });
 
     return NextResponse.json(dependency, { status: 201 });

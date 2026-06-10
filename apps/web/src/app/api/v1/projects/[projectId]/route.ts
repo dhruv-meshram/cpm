@@ -71,7 +71,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       where: { projectId_userId: { projectId, userId: session.userId as string } }
     });
 
-    if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+    if (!membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const roleUpper = membership.role.toUpperCase();
+    if (roleUpper !== 'PROJECT ADMIN' && roleUpper !== 'PROJECT_ADMIN' && roleUpper !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -108,7 +112,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
       where: { projectId_userId: { projectId, userId: session.userId as string } }
     });
 
-    if (!membership || membership.role !== 'OWNER') {
+    if (!membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const roleUpper = membership.role.toUpperCase();
+    if (roleUpper !== 'PROJECT ADMIN' && roleUpper !== 'PROJECT_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

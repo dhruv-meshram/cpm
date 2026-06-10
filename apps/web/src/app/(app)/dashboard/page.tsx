@@ -11,13 +11,16 @@ import {
   ArrowRight,
   Clock,
   Activity,
+  UploadCloud,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { MetricCard, SectionCard } from '@/components/ui/Card';
-import { ButtonPrimary } from '@/components/ui/Button';
+import { ButtonPrimary, ButtonSecondary } from '@/components/ui/Button';
 import { StatusBadge, HealthDot, ProgressBar } from '@/components/ui/Badge';
 import { SkeletonMetricCard, SkeletonCard } from '@/components/ui/Skeleton';
 import { CreateProjectModal } from '@/components/CreateProjectModal';
+import { ImportProjectModal } from '@/components/ImportProjectModal';
 
 async function fetchStats() {
   const res = await fetch('/api/v1/dashboard/stats');
@@ -43,58 +46,15 @@ async function fetchRecentActivity() {
   return res.json();
 }
 
-const formatActivity = (act: any) => {
-  const action = act.action || '';
-  const actionLower = action.toLowerCase();
-  
-  let label = action;
-  let color = '#615d59';
-  let bg = '#f6f5f4';
-  let desc = `By ${act.user || 'System'}`;
-  
-  if (actionLower.includes('recalculate') || actionLower.includes('cpm')) {
-    label = 'CPM Recalculated';
-    color = '#1aae39';
-    bg = '#edf8f0';
-    desc = action;
-  } else if (actionLower.includes('import')) {
-    label = 'Project Imported';
-    color = '#dd5b00';
-    bg = '#fef3ea';
-    desc = action;
-  } else if (actionLower.includes('created') || actionLower.includes('create')) {
-    label = actionLower.includes('task') ? 'Task Created' : actionLower.includes('project') ? 'Project Created' : 'Created';
-    color = '#000000';
-    bg = '#ece9e6';
-    desc = action;
-  } else if (actionLower.includes('deleted') || actionLower.includes('delete')) {
-    label = 'Deleted';
-    color = '#f64932';
-    bg = '#fef0ef';
-    desc = action;
-  }
-  
-  let time = 'Recent';
-  if (act.timestamp) {
-    const diffMs = Date.now() - new Date(act.timestamp).getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 60) {
-      time = `${Math.max(1, diffMins)}m ago`;
-    } else if (diffHours < 24) {
-      time = `${diffHours}h ago`;
-    } else {
-      time = `${diffDays}d ago`;
-    }
-  }
-  
-  return { label, color, bg, desc, time };
-};
+import { ActivityItem } from '@/components/ui/ActivityItem';
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const removedFrom = searchParams.get('removedFrom');
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['stats'],
     queryFn: fetchStats,
@@ -121,6 +81,28 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-8 py-8 space-y-8 animate-fade-in">
+      {removedFrom && (
+        <div className="bg-[#fef2f2] border border-[#fca5a5] text-red-700 px-4 py-3 rounded-lg flex items-center justify-between shadow-sm transition-all duration-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-red-600 shrink-0" size={18} />
+            <span className="text-[13px] font-medium">
+              You were removed from the project space <strong>{removedFrom}</strong>.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.delete('removedFrom');
+              const nextQuery = params.toString();
+              router.replace(`/dashboard${nextQuery ? `?${nextQuery}` : ''}`);
+            }}
+            className="text-red-700 hover:text-red-900 text-[11px] font-semibold underline cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -135,6 +117,14 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <ButtonSecondary
+            onClick={() => setIsImportModalOpen(true)}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <UploadCloud size={15} />
+            Import XML
+          </ButtonSecondary>
           <ButtonPrimary
             onClick={() => setIsCreateModalOpen(true)}
             size="sm"
@@ -198,11 +188,24 @@ export default function DashboardPage() {
                 <SkeletonCard />
               </div>
             ) : !projects || projects.length === 0 ? (
-              <div className="p-8 text-center">
+              <div className="p-8 text-center flex flex-col items-center justify-center gap-3">
                 <p className="text-[14px] text-[#a39e98]">No projects yet.</p>
-                <Link href="/projects" className="text-[13px] text-black hover:underline mt-2 inline-block">
-                  Create your first project →
-                </Link>
+                <div className="flex gap-3">
+                  <ButtonSecondary
+                    onClick={() => setIsImportModalOpen(true)}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <UploadCloud size={14} /> Import XML
+                  </ButtonSecondary>
+                  <ButtonPrimary
+                    onClick={() => setIsCreateModalOpen(true)}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Plus size={14} /> New Project
+                  </ButtonPrimary>
+                </div>
               </div>
             ) : (
               <ul className="divide-y divide-[#e6e6e6]">
@@ -251,36 +254,22 @@ export default function DashboardPage() {
                   No recent activity found.
                 </div>
               ) : (
-                activities.slice(0, 5).map((act: any) => {
-                  const item = formatActivity(act);
-                  return (
-                    <div key={act.id} className="px-5 py-4 flex items-start gap-3 hover:bg-[#f6f5f4] transition-colors">
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ background: item.bg }}
-                      >
-                        <Activity size={13} style={{ color: item.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[13px] font-[600] text-[#000000]">{item.label}</span>
-                          <time className="text-[11px] text-[#a39e98] shrink-0">{item.time}</time>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                          {act.entityType === 'Task' && act.projectId && (
-                            <Link
-                              href={`/projects/${act.projectId}/tasks?task=${act.entityId}`}
-                              className="font-mono text-[11px] text-[#615d59] hover:text-[#000000] hover:underline bg-[#f6f5f4] border border-[#e6e6e6] px-1.5 py-0.5 rounded shrink-0"
-                            >
-                              CP-{act.entityId.slice(0, 4).toUpperCase()}
-                            </Link>
-                          )}
-                          <p className="text-[13px] text-[#615d59] truncate flex-1">{item.desc}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+                activities.slice(0, 5).map((act: any) => (
+                  <ActivityItem
+                    key={act.id}
+                    action={act.action}
+                    actor={act.actorName}
+                    project={act.projectName}
+                    timestamp={act.createdAt}
+                    projectId={act.projectId}
+                    taskId={act.taskId}
+                    taskCode={act.taskCode}
+                    sourceTaskId={act.sourceTaskId}
+                    sourceTaskCode={act.sourceTaskCode}
+                    targetTaskId={act.targetTaskId}
+                    targetTaskCode={act.targetTaskCode}
+                  />
+                ))
               )}
             </div>
           </SectionCard>
@@ -325,6 +314,10 @@ export default function DashboardPage() {
       <CreateProjectModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+      <ImportProjectModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
     </div>
   );

@@ -174,7 +174,7 @@ export async function POST(req: Request) {
         identifier,
         workspaceId: userWorkspace.workspace.id,
         members: {
-          create: { userId, role: 'OWNER' }
+          create: { userId, role: 'Project Admin' }
         }
       }
     });

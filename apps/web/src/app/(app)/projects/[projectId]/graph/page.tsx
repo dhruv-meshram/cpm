@@ -64,6 +64,8 @@ export default function GraphPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
+  const [hoveredTask, setHoveredTask] = useState<any | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -119,16 +121,15 @@ export default function GraphPage() {
       const opacity = showCriticalOnly && !isCritical ? 0.2 : 1;
       const isOverdue = t.state === 'BACKLOG' || (t.state !== 'DONE' && t.endDate && new Date(t.endDate) < new Date());
       const statusColors = getStatusColor(t.state, isOverdue);
+      const departmentsText = t.departments && t.departments.length > 0
+        ? t.departments.map((d: any) => d.name).join(', ')
+        : 'General';
       
       return {
         id: t.id,
         data: { 
           label: (
-            <div title={
-              details 
-                ? `Task: ${t.title}\nDuration: ${t.duration}d\nES: ${details.es} | EF: ${details.ef}\nLS: ${details.ls} | LF: ${details.lf}\nSlack: ${details.slack}\nCritical: ${isCritical ? 'Yes' : 'No'}`
-                : `Task: ${t.title}\nDuration: ${t.duration}d\nCritical: No`
-            }>
+            <div>
               <div className="font-semibold truncate">{t.title}</div>
               <div className="text-xs mt-1 font-medium px-1.5 py-0.5 rounded inline-block bg-white/50 border border-black/5">
                 {isOverdue ? `OVERDUE ${t.state !== 'BACKLOG' ? `(${t.state})` : ''}` : t.state}
@@ -212,6 +213,21 @@ export default function GraphPage() {
           edges={edges} 
           onNodesChange={onNodesChange} 
           onEdgesChange={onEdgesChange}
+          onNodeMouseEnter={(event, node) => {
+            const task = tasks.find((t: any) => t.id === node.id);
+            if (task) {
+              setHoveredTask({
+                ...task,
+                details: cpmResults?.details?.taskDetails?.[task.id]
+              });
+            }
+          }}
+          onNodeMouseMove={(event) => {
+            setTooltipPos({ x: event.clientX, y: event.clientY });
+          }}
+          onNodeMouseLeave={() => {
+            setHoveredTask(null);
+          }}
           fitView
           attributionPosition="bottom-right"
           minZoom={0.2}
@@ -263,6 +279,37 @@ export default function GraphPage() {
           </Panel>
         </ReactFlow>
       </div>
+
+      {hoveredTask && (
+        <div 
+          className="fixed z-[50000] bg-white border border-[#e6e6e6] rounded-xl p-4 shadow-xl pointer-events-none max-w-[320px] font-sans transition-opacity duration-150"
+          style={{
+            left: tooltipPos.x + 15 + 320 > (typeof window !== 'undefined' ? window.innerWidth : 1000) 
+              ? tooltipPos.x - 320 - 15 
+              : tooltipPos.x + 15,
+            top: tooltipPos.y + 15 + 240 > (typeof window !== 'undefined' ? window.innerHeight : 800) 
+              ? tooltipPos.y - 240 - 15 
+              : tooltipPos.y + 15,
+            transform: 'translate3d(0, 0, 0)'
+          }}
+        >
+          <div className="text-[10px] font-bold text-[#a39e98] uppercase tracking-wider mb-1">Task Info</div>
+          <h4 className="text-[13px] font-bold text-black mb-1">{hoveredTask.title}</h4>
+          <p className="text-[12px] text-[#615d59] mb-3 leading-relaxed break-words line-clamp-4">
+            {hoveredTask.description || <span className="italic text-gray-300">No description provided.</span>}
+          </p>
+          <div className="flex flex-col gap-1.5 pt-3 border-t border-[#f0efee] text-[11px]">
+            <div className="flex justify-between gap-4">
+              <span className="text-[#a39e98]">Department:</span>
+              <span className="font-semibold text-black text-right truncate max-w-[180px]">
+                {hoveredTask.departments && hoveredTask.departments.length > 0
+                  ? hoveredTask.departments.map((d: any) => d.name).join(', ')
+                  : 'General'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

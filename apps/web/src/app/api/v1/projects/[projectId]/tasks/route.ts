@@ -15,7 +15,8 @@ const createTaskSchema = z.object({
   parentTaskId: z.string().optional(),
   isCritical: z.boolean().optional(),
   departmentIds: z.array(z.string()).optional(),
-  tagIds: z.array(z.string()).optional()
+  tagIds: z.array(z.string()).optional(),
+  assigneeIds: z.array(z.string()).optional()
 });
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -40,6 +41,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
         taskTags: {
           include: {
             tag: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           }
         }
       },
@@ -66,7 +78,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       where: { projectId_userId: { projectId, userId: session.userId as string } }
     });
 
-    if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN' && membership.role !== 'MEMBER')) {
+    if (!membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const roleUpper = membership.role.toUpperCase();
+    if (roleUpper !== 'PROJECT ADMIN' && roleUpper !== 'PROJECT_ADMIN' && roleUpper !== 'ADMIN' && roleUpper !== 'MEMBER' && roleUpper !== 'CAPTAIN' && roleUpper !== 'PROJECT MANAGER' && roleUpper !== 'PROJECT_MANAGER') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -77,7 +93,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical, departmentIds, tagIds } = parsed.data;
+    const { title, description, duration, state, startDate, endDate, parentTaskId, isCritical, departmentIds, tagIds, assigneeIds } = parsed.data;
 
     let connectDeps = departmentIds && departmentIds.length > 0
       ? departmentIds.map(id => ({ id }))
@@ -120,6 +136,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
           taskTags: {
             create: tagIds.map(tagId => ({ tagId }))
           }
+        }),
+        ...(assigneeIds && assigneeIds.length > 0 && {
+          assignees: {
+            create: assigneeIds.map(userId => ({ userId }))
+          }
         })
       },
       include: {
@@ -127,6 +148,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         taskTags: {
           include: {
             tag: true
+          }
+        },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           }
         }
       }
@@ -140,6 +172,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
           value: true as any
         }
       });
+    }
+
+    if (assigneeIds && assigneeIds.length > 0) {
+      const projectInfo = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true }
+      });
+      const projectName = projectInfo?.name || 'a project';
+      
+      for (const userId of assigneeIds) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            projectId,
+            taskId: task.id,
+            type: 'TASK_ASSIGNED',
+            title: 'Task Assigned',
+            content: `You have been assigned to the task "${title}" in project "${projectName}".`
+          }
+        });
+      }
     }
 
     await logActivity({

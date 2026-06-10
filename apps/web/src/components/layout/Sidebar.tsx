@@ -3,6 +3,7 @@
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -11,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Network,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +22,7 @@ const navItems = [
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
       { label: 'Projects', icon: FolderKanban, href: '/projects' },
+      { label: 'Notifications', icon: Bell, href: '/notifications' },
     ],
   },
   {
@@ -34,6 +37,18 @@ export function Sidebar() {
   const { sidebarOpen, toggleSidebar } = useWorkspaceStore();
   const pathname = usePathname();
   const router = useRouter();
+
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/notifications');
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    },
+    refetchInterval: 10000,
+  });
+
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const handleLogout = async () => {
     await fetch('/api/v1/auth/logout', { method: 'POST' });
@@ -116,6 +131,15 @@ export function Sidebar() {
                         <span className={cn('text-[14px] leading-[1.43]', active ? 'font-[600]' : 'font-[500]')}>
                           {item.label}
                         </span>
+                      )}
+                      {item.label === 'Notifications' && unreadCount > 0 && (
+                        sidebarOpen ? (
+                          <span className="ml-auto bg-black text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shrink-0">
+                            {unreadCount}
+                          </span>
+                        ) : (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-black rounded-full border border-white" />
+                        )
                       )}
                     </Link>
                   </li>

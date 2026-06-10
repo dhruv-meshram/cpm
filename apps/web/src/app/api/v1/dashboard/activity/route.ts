@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatActivityLog, checkAndLogOverdueTasks } from '@/lib/activity';
 
 export async function GET(req: Request) {
   try {
@@ -19,6 +20,9 @@ export async function GET(req: Request) {
     });
 
     const projectIds = userProjects.map(p => p.projectId);
+
+    // Check overdue tasks for all user's projects
+    await Promise.all(projectIds.map(id => checkAndLogOverdueTasks(id)));
 
     // Get all tasks in those projects to get their activity
     const taskIds = await prisma.task.findMany({
@@ -51,15 +55,24 @@ export async function GET(req: Request) {
 
     const taskProjectMap = new Map(tasks.map(t => [t.id, t.projectId]));
 
-    const formattedData = activities.map(act => ({
-      id: act.id,
-      action: act.action,
-      entityType: act.entityType,
-      entityId: act.entityId,
-      timestamp: act.timestamp,
-      user: act.user?.name || 'System',
-      projectId: act.entityType === 'Project' ? act.entityId : taskProjectMap.get(act.entityId)
-    }));
+    const activityProjectIds = Array.from(new Set(activities.map(act => 
+      act.entityType === 'Project' ? act.entityId : taskProjectMap.get(act.entityId)
+    ).filter(Boolean))) as string[];
+
+    const projectsInfo = await prisma.project.findMany({
+      where: { id: { in: activityProjectIds } },
+      select: { id: true, name: true }
+    });
+
+    const projectMap = new Map(projectsInfo.map(p => [p.id, p.name]));
+
+    const formattedData = activities.map(act => {
+      const pId = act.entityType === 'Project' ? act.entityId : taskProjectMap.get(act.entityId);
+      const projectName = projectMap.get(pId || '') || 'Unknown Project';
+      const formatted = formatActivityLog(act, projectName);
+      formatted.projectId = pId || '';
+      return formatted;
+    });
 
     return NextResponse.json(formattedData);
   } catch (error) {

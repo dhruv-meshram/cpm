@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatActivityLog, checkAndLogOverdueTasks } from '@/lib/activity';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -17,6 +18,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    await checkAndLogOverdueTasks(projectId);
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true }
+    });
+    const projectName = project?.name || 'Unknown Project';
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -48,15 +57,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     const hasMore = activities.length > limit;
     if (hasMore) activities.pop();
 
-    const formattedData = activities.map(act => ({
-      id: act.id,
-      action: act.action,
-      entityType: act.entityType,
-      entityId: act.entityId,
-      timestamp: act.timestamp,
-      user: act.user?.name || 'System',
-      projectId: projectId
-    }));
+    const formattedData = activities.map(act => {
+      const formatted = formatActivityLog(act, projectName);
+      formatted.projectId = projectId;
+      return formatted;
+    });
 
     return NextResponse.json({
       data: formattedData,

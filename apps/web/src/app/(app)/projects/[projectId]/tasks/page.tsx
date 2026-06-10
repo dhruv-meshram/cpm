@@ -29,6 +29,15 @@ const isTaskOverdue = (task: any) => {
   return false;
 };
 
+const getInitials = (name: string) => {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
 export default function TasksPage() {
   const params = useParams();
   const projectId = params.projectId as string;
@@ -73,6 +82,15 @@ export default function TasksPage() {
     queryFn: async () => {
       const res = await fetch(`/api/v1/projects/${projectId}/tags`);
       if (!res.ok) throw new Error('Failed');
+      return res.json();
+    }
+  });
+
+  const { data: members = [] } = useQuery<any[]>({
+    queryKey: ['members', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/projects/${projectId}/members`);
+      if (!res.ok) throw new Error('Failed to fetch members');
       return res.json();
     }
   });
@@ -125,12 +143,14 @@ export default function TasksPage() {
   const closeSidebar = () => { setSidebarMode(null); setActiveTask(null); setShouldFocusTags(false); };
 
   const [selectedFilterDeptId, setSelectedFilterDeptId] = useState<string>('ALL');
+  const [selectedFilterAssigneeId, setSelectedFilterAssigneeId] = useState<string>('ALL');
 
   const filteredTasks = tasks.filter((t: any) => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDept = selectedFilterDeptId === 'ALL' || (t.departments && t.departments.some((d: any) => d.id === selectedFilterDeptId));
     const matchesTags = selectedFilterTagIds.length === 0 || (t.taskTags && selectedFilterTagIds.every((tagId) => t.taskTags.some((tt: any) => tt.tagId === tagId)));
-    return matchesSearch && matchesDept && matchesTags;
+    const matchesAssignee = selectedFilterAssigneeId === 'ALL' || (t.assignees && t.assignees.some((a: any) => a.user.id === selectedFilterAssigneeId));
+    return matchesSearch && matchesDept && matchesTags && matchesAssignee;
   });
 
   const totalTasks = tasks.length;
@@ -169,6 +189,17 @@ export default function TasksPage() {
             <option value="ALL">All Departments</option>
             {departments.map((d: any) => (
               <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedFilterAssigneeId}
+            onChange={(e) => setSelectedFilterAssigneeId(e.target.value)}
+            className="px-3 py-1.5 text-xs font-semibold border border-[#e6e6e6] rounded-lg focus:outline-hidden bg-white text-gray-700"
+          >
+            <option value="ALL">All Assignees</option>
+            {members.map((m: any) => (
+              <option key={m.userId} value={m.userId}>{m.user.name}</option>
             ))}
           </select>
 
@@ -212,7 +243,7 @@ export default function TasksPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-[#f6f5f4] p-0.5 rounded-[8px] border border-[#e6e6e6] gap-0.5">
-            {([['board', LayoutGrid], ['list', List], ['table', Table]] as const).map(([mode, Icon]) => (
+            {([['board', LayoutGrid], ['list', List]] as const).map(([mode, Icon]) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -225,9 +256,6 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
-          <ButtonUtility variant="ghost" className="flex items-center gap-1 !px-2 !py-1.5">
-            Group: Status <ChevronDown size={13} />
-          </ButtonUtility>
           <ButtonPrimary
             size="sm"
             onClick={() => { setActiveTask(null); setSidebarMode('create'); }}
@@ -257,7 +285,13 @@ export default function TasksPage() {
       {viewMode === 'board' ? (
         <div className="flex-1 flex gap-4 px-6 py-4 items-stretch min-w-0 overflow-hidden">
           {COLUMNS.map((col) => {
-            const colTasks = filteredTasks.filter((t: any) => t.state === col.id);
+            const colTasks = filteredTasks.filter((t: any) => {
+              if (col.id === 'BACKLOG') {
+                return t.state === 'BACKLOG' || isTaskOverdue(t);
+              } else {
+                return t.state === col.id && !isTaskOverdue(t);
+              }
+            });
             const isCollapsed = collapsedCols.has(col.id);
 
             if (isCollapsed) {
@@ -333,7 +367,7 @@ export default function TasksPage() {
                         onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
                         onClick={() => { setActiveTask(task); setSidebarMode('edit'); setShouldFocusTags(false); }}
                         className={cn(
-                          'bg-white rounded-[10px] border p-3 cursor-pointer transition-all duration-150 group',
+                          'bg-white rounded-none border p-3 cursor-pointer transition-all duration-150 group',
                           isOverdue
                             ? 'border-l-[3px] border-l-red-500 border-y-[#e6e6e6] border-r-[#e6e6e6] bg-red-50/10'
                             : isCritical
@@ -401,9 +435,24 @@ export default function TasksPage() {
                             >
                               <Tag size={12} />
                             </button>
-                            <div className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]">
-                              JD
-                            </div>
+                            {task.assignees && task.assignees.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <div
+                                  className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-[700]"
+                                  title={task.assignees[0].user.name}
+                                >
+                                  {getInitials(task.assignees[0].user.name)}
+                                </div>
+                                {task.assignees.length > 1 && (
+                                  <div
+                                    className="w-5 h-5 rounded-full bg-[#f6f5f4] text-black flex items-center justify-center text-[9px] font-[700] border border-[#e6e6e6]"
+                                    title={task.assignees.slice(1).map((a: any) => a.user.name).join(', ')}
+                                  >
+                                    +{task.assignees.length - 1}
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>

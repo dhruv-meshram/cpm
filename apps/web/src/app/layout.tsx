@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { WebSocketListener } from "@/components/WebSocketListener";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -39,7 +40,10 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#f6f5f4] text-[#000000]">
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <WebSocketListener />
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );

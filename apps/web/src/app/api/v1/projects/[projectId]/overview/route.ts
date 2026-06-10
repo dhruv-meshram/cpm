@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { formatActivityLog, checkAndLogOverdueTasks } from '@/lib/activity';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -10,6 +11,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     }
 
     const { projectId } = await params;
+    await checkAndLogOverdueTasks(projectId);
 
     // Validate access
     const isMember = await prisma.projectMember.findUnique({
@@ -62,15 +64,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       }
     });
 
-    const activities = activitiesData.map(act => ({
-      id: act.id,
-      user: act.user?.name || 'System',
-      action: act.action,
-      timestamp: act.timestamp,
-      entityType: act.entityType,
-      entityId: act.entityId,
-      projectId: act.entityType === 'Project' ? act.entityId : projectId
-    }));
+    const activities = activitiesData.map(act => {
+      const formatted = formatActivityLog(act, project.name);
+      formatted.projectId = projectId;
+      return formatted;
+    });
 
     // Calculate Task Metrics
     const totalTasks = project.tasks.length;

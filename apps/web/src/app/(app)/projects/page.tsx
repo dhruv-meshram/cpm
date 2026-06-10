@@ -175,7 +175,7 @@ export default function ProjectsPage() {
                   <ButtonUtility onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2">
                     <UploadCloud size={15} /> Import XML
                   </ButtonUtility>
-                  <ButtonPrimary size="sm" className="flex items-center gap-2">
+                  <ButtonPrimary onClick={() => setIsCreateModalOpen(true)} size="sm" className="flex items-center gap-2">
                     <Plus size={15} /> New Project
                   </ButtonPrimary>
                 </>

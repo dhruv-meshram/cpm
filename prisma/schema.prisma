@@ -85,6 +85,11 @@ model User {
   taskAssignees         TaskAssignee[]
   votes                 Vote[]
   taskSubscribers       TaskSubscriber[]
+  notifications         Notification[]
+  announcements         Announcement[]
+  announcementReads    AnnouncementRead[]
+  taskApprovals         TaskApproval[]
+  decisions             Decision[]         @relation("DecisionMaker")
 }
 
 model WorkspaceMember {
@@ -127,22 +132,30 @@ model Project {
   owner       User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   departments Department[]
   tags        Tag[]
+  announcements Announcement[]
+  decisions     Decision[]
+  notifications Notification[]
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
 }
 
 model ProjectMember {
-  projectId String
-  userId    String
-  role      MemberRole @default(MEMBER)
-  createdAt DateTime   @default(now())
+  projectId    String
+  userId       String
+  role         String      @default("Member") // Can be Member, Department Head, Project Manager, Captain, Admin
+  departmentId String?
+  createdAt    DateTime    @default(now())
+  lastActiveAt DateTime?   @default(now())
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   @@id([projectId, userId])
   @@index([userId])
+  @@index([departmentId])
+  @@map("project_members")
 }
 
 model Task {
@@ -178,6 +191,9 @@ model Task {
   nodePosition    NodePosition?
   departments     Department[]   @relation("TaskDepartments")
   taskTags        TaskTag[]
+  approvals       TaskApproval[]
+  decisions       Decision[]     @relation("TaskDecisions")
+  notifications   Notification[]
 
   @@index([projectId])
   @@index([parentTaskId])
@@ -214,6 +230,7 @@ model TaskAssignee {
 
   @@id([taskId, userId])
   @@index([userId])
+  @@map("task_assignees")
 }
 
 model Label {
@@ -282,14 +299,17 @@ model Comment {
 }
 
 model ActivityLog {
-  id         String   @id @default(cuid())
-  entityType String
-  entityId   String
-  action     String
-  oldValue   Json?
-  newValue   Json?
-  userId     String?
-  timestamp  DateTime @default(now())
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  oldValue      Json?
+  newValue      Json?
+  userId        String?
+  timestamp     DateTime @default(now())
+  workspaceName String?
+  userRole      String?
+  userName      String?
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -451,7 +471,105 @@ model Department {
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks       Task[]   @relation("TaskDepartments")
+  projectMembers ProjectMember[]
 
   @@unique([projectId, name])
   @@index([projectId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // MEMBER, DEPARTMENT_HEAD, PROJECT_MANAGER, CAPTAIN, ADMIN
+  description String?
+
+  @@map("roles")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  projectId   String?
+  taskId      String?
+  type        String           // TASK_ASSIGNED, TASK_REMOVED, etc.
+  title       String
+  content     String
+  isRead      Boolean          @default(false)
+  isArchived  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  projectId String
+  creatorId String
+  title     String
+  content   String   @db.Text
+  priority  String   @default("Normal") // Normal, Important, Critical
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator User               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  reads   AnnouncementRead[]
+
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@map("announcement_reads")
+}
+
+model TaskApproval {
+  id         String   @id @default(cuid())
+  taskId     String
+  reviewerId String
+  decision   String   // SUBMITTED, APPROVED, REJECTED
+  comment    String?  @db.Text
+  timestamp  DateTime @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  reviewer User @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_approvals")
+}
+
+model Decision {
+  id              String   @id @default(cuid())
+  projectId       String
+  title           String
+  description     String   @db.Text
+  reasoning       String   @db.Text
+  alternatives    String   @db.Text
+  decisionMakerId String
+  date            DateTime @default(now())
+  status          String   @default("Proposed") // Proposed, Approved, Archived
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  decisionMaker User    @relation("DecisionMaker", fields: [decisionMakerId], references: [id], onDelete: Cascade)
+  tasks         Task[]  @relation("TaskDecisions")
+
+  @@index([projectId])
+  @@map("decisions")
 }
