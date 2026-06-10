@@ -234,6 +234,31 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     });
     const projectName = projectInfo?.name || 'a project';
 
+    // Notify review approvers when a task moves to REVIEW state
+    if (state === 'REVIEW' && existingTask.state !== 'REVIEW') {
+      const allowedRoles = ['PROJECT_ADMIN', 'ADMIN', 'PROJECT MANAGER', 'PROJECT_MANAGER', 'DEPARTMENT_HEAD', 'CAPTAIN'];
+      const membersToNotify = await prisma.projectMember.findMany({
+        where: {
+          projectId,
+          role: { in: allowedRoles }
+        },
+        select: { userId: true }
+      });
+      for (const m of membersToNotify) {
+        if (m.userId === session.userId) continue;
+        await prisma.notification.create({
+          data: {
+            userId: m.userId,
+            projectId,
+            taskId: task.id,
+            title: 'Task Review Requested',
+            content: `Task "${task.title}" has been submitted for review in project "${projectName}".`,
+            type: 'TASK_STATUS_CHANGE'
+          }
+        });
+      }
+    }
+
     // 1. Task Assignments
     if (assigneeIds !== undefined) {
       const newlyAssignedIds = assigneeIds.filter((id: string) => !existingAssigneeIds.includes(id));

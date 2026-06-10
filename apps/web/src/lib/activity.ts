@@ -99,6 +99,78 @@ export async function logActivity({
       }
     });
 
+    // Notify assignees of any task/dependency activity
+    try {
+      if (entityType === 'Task') {
+        const assignees = await prisma.taskAssignee.findMany({
+          where: { taskId: entityId },
+          select: { userId: true }
+        });
+        const task = await prisma.task.findUnique({
+          where: { id: entityId },
+          select: { projectId: true, title: true }
+        });
+        if (task && task.projectId) {
+          for (const assignee of assignees) {
+            if (assignee.userId === userId) continue;
+            await prisma.notification.create({
+              data: {
+                userId: assignee.userId,
+                projectId: task.projectId,
+                taskId: entityId,
+                title: `Task Activity`,
+                content: `Activity on your assigned task "${task.title}": ${action}`,
+                type: 'TASK_STATUS_CHANGE'
+              }
+            });
+          }
+        }
+      } else if (entityType === 'Project') {
+        const depMatch = action.match(/Dependency\s+(added|removed):\s+Task\s+([^\s]+)\s+->\s+Task\s+([^\s]+)/i);
+        if (depMatch && depMatch[2] && depMatch[3]) {
+          const predId = depMatch[2];
+          const succId = depMatch[3];
+          const isAdded = depMatch[1].toLowerCase() === 'added';
+          
+          const tasks = await prisma.task.findMany({
+            where: { id: { in: [predId, succId] } },
+            select: { id: true, title: true }
+          });
+          const taskMap = new Map(tasks.map(t => [t.id, t.title]));
+          const predTitle = taskMap.get(predId) || 'Predecessor';
+          const succTitle = taskMap.get(succId) || 'Successor';
+
+          const assignees = await prisma.taskAssignee.findMany({
+            where: { taskId: { in: [predId, succId] } },
+            select: { userId: true, taskId: true }
+          });
+
+          for (const assignee of assignees) {
+            if (assignee.userId === userId) continue;
+            const isPred = assignee.taskId === predId;
+            const myTitle = isPred ? predTitle : succTitle;
+            const otherTitle = isPred ? succTitle : predTitle;
+            const otherCode = isPred ? `CP-${succId.slice(0, 4).toUpperCase()}` : `CP-${predId.slice(0, 4).toUpperCase()}`;
+            
+            await prisma.notification.create({
+              data: {
+                userId: assignee.userId,
+                projectId: entityId,
+                taskId: assignee.taskId,
+                title: isAdded ? `Dependency Added` : `Dependency Removed`,
+                content: isAdded 
+                  ? `A dependency was added between your task "${myTitle}" and "${otherTitle}" (${otherCode}).`
+                  : `The dependency between your task "${myTitle}" and "${otherTitle}" (${otherCode}) was removed.`,
+                type: 'TASK_STATUS_CHANGE'
+              }
+            });
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error('Failed to create assignee notification:', notifErr);
+    }
+
     // Emits
     if (projectId) {
       await emitToProjectRoom(projectId, 'activity_logged', {
