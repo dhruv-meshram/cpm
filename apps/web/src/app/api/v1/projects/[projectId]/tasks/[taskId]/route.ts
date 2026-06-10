@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity, formatActivityLog } from '@/lib/activity';
+import { hasPermission } from '@/lib/permissions';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string, taskId: string }> }) {
   try {
@@ -71,13 +72,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
 
     const { projectId, taskId } = await params;
 
-    const membership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: session.userId as string } }
-    });
-    if (!membership || membership.role === 'VIEWER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const existingTask = await prisma.task.findUnique({
       where: { id: taskId, projectId }
     });
@@ -86,10 +80,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
+    if (!await hasPermission(session.userId as string, projectId, 'edit_task', { taskId })) {
+      return NextResponse.json({ error: 'You do not have permission to modify this task.' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { title, description, duration, state, startDate, endDate, departmentIds, tagIds, assigneeIds } = body;
 
-    if (state === 'DONE' && ['MEMBER'].includes(membership.role.toUpperCase())) {
+    if (state && state !== existingTask.state) {
+      if (!await hasPermission(session.userId as string, projectId, 'submit_task', { taskId })) {
+        return NextResponse.json({ error: 'You do not have permission to change the status of this task.' }, { status: 403 });
+      }
+    }
+
+    const membership = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: session.userId as string } }
+    });
+
+    if (state === 'DONE' && membership && ['MEMBER'].includes(membership.role.toUpperCase())) {
       const approved = await prisma.taskApproval.findFirst({
         where: { taskId, decision: 'APPROVED' }
       });

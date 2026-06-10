@@ -22,10 +22,12 @@ interface ProjectMember {
   userId: string;
   projectId: string;
   role: string;
+  customRoleId: string | null;
   departmentId: string | null;
   createdAt: string;
   user: User;
   department: Department | null;
+  customRole: any | null;
 }
 
 // Roles are fetched dynamically from the database.
@@ -42,12 +44,12 @@ export default function TeamPage() {
 
   // Form States for Inviting
   const [inviteEmails, setInviteEmails] = useState('');
-  const [inviteRole, setInviteRole] = useState('Project Admin');
+  const [inviteRole, setInviteRole] = useState('Member');
   const [inviteDept, setInviteDept] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Form States for Editing Member
-  const [editRole, setEditRole] = useState('Project Admin');
+  const [editRole, setEditRole] = useState('Member');
   const [editDept, setEditDept] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -83,7 +85,7 @@ export default function TeamPage() {
 
   // Invite Mutation
   const inviteMutation = useMutation({
-    mutationFn: async (data: { emails: string[]; role: string; departmentId: string | null }) => {
+    mutationFn: async (data: { emails: string[]; role: string; customRoleId: string | null; departmentId: string | null }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +101,7 @@ export default function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ['members', projectId] });
       setShowInviteModal(false);
       setInviteEmails('');
-      setInviteRole('Project Admin');
+      setInviteRole('Member');
       setInviteDept('');
       setInviteError(null);
     },
@@ -110,7 +112,7 @@ export default function TeamPage() {
 
   // Update Member Mutation
   const updateMemberMutation = useMutation({
-    mutationFn: async (data: { userId: string; role: string; departmentId: string | null }) => {
+    mutationFn: async (data: { userId: string; role: string; customRoleId: string | null; departmentId: string | null }) => {
       const res = await fetch(`/api/v1/projects/${projectId}/members`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +157,11 @@ export default function TeamPage() {
 
   const handleOpenEdit = (member: ProjectMember) => {
     setEditingMember(member);
-    setEditRole(member.role);
+    if (member.customRoleId) {
+      setEditRole(`CUSTOM:${member.customRoleId}:${member.role}`);
+    } else {
+      setEditRole(member.role);
+    }
     setEditDept(member.departmentId || '');
     setEditError(null);
   };
@@ -172,9 +178,18 @@ export default function TeamPage() {
       return;
     }
 
+    let selectedRole = inviteRole;
+    let selectedCustomRoleId = null;
+    if (inviteRole.startsWith('CUSTOM:')) {
+      const parts = inviteRole.split(':');
+      selectedCustomRoleId = parts[1];
+      selectedRole = parts[2];
+    }
+
     inviteMutation.mutate({
       emails: emailList,
-      role: inviteRole,
+      role: selectedRole,
+      customRoleId: selectedCustomRoleId,
       departmentId: inviteDept || null
     });
   };
@@ -259,9 +274,19 @@ export default function TeamPage() {
                   )}
                 </td>
                 <td className="py-4 px-6 font-medium">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f6f5f4] text-black border border-[#e6e6e6] font-mono text-[11px]">
-                    <Shield size={10} className="text-[#615d59]" />
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono border",
+                    member.customRoleId 
+                      ? "bg-black text-white border-black" 
+                      : "bg-[#f6f5f4] text-black border-[#e6e6e6]"
+                  )}>
+                    <Shield size={10} className={member.customRoleId ? "text-white" : "text-[#615d59]"} />
                     {member.role}
+                    {member.customRoleId && (
+                      <span className="text-[8px] uppercase font-bold tracking-wider opacity-80 pl-1 border-l border-white/30 ml-1">
+                        Custom
+                      </span>
+                    )}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-[#615d59]">
@@ -341,9 +366,20 @@ export default function TeamPage() {
                     onChange={(e) => setInviteRole(e.target.value)}
                     className="w-full px-3 py-2 border border-[#dcdcdc] rounded-lg text-[13px] focus:ring-1 focus:ring-black focus:outline-hidden bg-white"
                   >
-                    {roles.map(r => (
-                      <option key={r.id} value={r.name}>{r.name}</option>
-                    ))}
+                    <optgroup label="Standard Roles">
+                      <option value="Member">Member</option>
+                      <option value="Department Head">Department Head</option>
+                      <option value="Project Manager">Project Manager</option>
+                      <option value="Captain">Captain</option>
+                      <option value="Admin">Admin</option>
+                    </optgroup>
+                    {roles.length > 0 && (
+                      <optgroup label="Custom Roles">
+                        {roles.map((r: any) => (
+                          <option key={r.id} value={`CUSTOM:${r.id}:${r.name}`}>{r.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -413,9 +449,20 @@ export default function TeamPage() {
                   onChange={(e) => setEditRole(e.target.value)}
                   className="w-full px-3 py-2 border border-[#dcdcdc] rounded-lg text-[13px] focus:ring-1 focus:ring-black focus:outline-hidden bg-white"
                 >
-                  {roles.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  ))}
+                  <optgroup label="Standard Roles">
+                    <option value="Member">Member</option>
+                    <option value="Department Head">Department Head</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Captain">Captain</option>
+                    <option value="Admin">Admin</option>
+                  </optgroup>
+                  {roles.length > 0 && (
+                    <optgroup label="Custom Roles">
+                      {roles.map((r: any) => (
+                        <option key={r.id} value={`CUSTOM:${r.id}:${r.name}`}>{r.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 
@@ -441,11 +488,21 @@ export default function TeamPage() {
                 Cancel
               </button>
               <button
-                onClick={() => updateMemberMutation.mutate({
-                  userId: editingMember.userId,
-                  role: editRole,
-                  departmentId: editDept || null
-                })}
+                onClick={() => {
+                  let selectedRole = editRole;
+                  let selectedCustomRoleId = null;
+                  if (editRole.startsWith('CUSTOM:')) {
+                    const parts = editRole.split(':');
+                    selectedCustomRoleId = parts[1];
+                    selectedRole = parts[2];
+                  }
+                  updateMemberMutation.mutate({
+                    userId: editingMember.userId,
+                    role: selectedRole,
+                    customRoleId: selectedCustomRoleId,
+                    departmentId: editDept || null
+                  });
+                }}
                 disabled={updateMemberMutation.isPending}
                 className="px-4 py-2 rounded-lg bg-black text-white text-[13px] font-semibold hover:bg-black/90 transition-colors cursor-pointer"
               >

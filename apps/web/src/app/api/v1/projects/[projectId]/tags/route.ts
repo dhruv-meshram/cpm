@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { hasPermission } from '@/lib/permissions';
 
 const createTagSchema = z.object({
   name: z.string().min(1).max(50),
@@ -54,10 +55,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
     }
     const { projectId } = await params;
 
-    const membership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: session.userId as string } }
-    });
-    if (!membership || membership.role === 'VIEWER') {
+    if (!await hasPermission(session.userId as string, projectId, 'manage_tags')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

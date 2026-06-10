@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
+import { hasPermission } from '@/lib/permissions';
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
@@ -74,16 +75,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
 
     const { projectId } = await params;
 
-    const membership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: session.userId as string } }
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    const roleUpper = membership.role.toUpperCase();
-    if (roleUpper !== 'PROJECT ADMIN' && roleUpper !== 'PROJECT_ADMIN' && roleUpper !== 'ADMIN' && roleUpper !== 'MEMBER' && roleUpper !== 'CAPTAIN' && roleUpper !== 'PROJECT MANAGER' && roleUpper !== 'PROJECT_MANAGER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!await hasPermission(session.userId as string, projectId, 'create_task')) {
+      return NextResponse.json({ error: 'You do not have permission to add tasks to this project.' }, { status: 403 });
     }
 
     const body = await req.json();

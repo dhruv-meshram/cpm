@@ -4,7 +4,8 @@ export type ProjectRole = string;
 
 export async function getProjectMember(userId: string, projectId: string) {
   return prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId } }
+    where: { projectId_userId: { projectId, userId } },
+    include: { customRole: true }
   });
 }
 
@@ -25,19 +26,69 @@ export async function hasPermission(
     | 'approve_final'
     | 'manage_members'
     | 'delete_project'
-    | 'post_announcement',
+    | 'post_announcement'
+    | 'manage_departments'
+    | 'manage_tags'
+    | 'manage_roles',
   context?: { taskId?: string; departmentId?: string }
 ): Promise<boolean> {
   const member = await getProjectMember(userId, projectId);
   if (!member) return false;
 
-  const role = member.role.toUpperCase();
+  const role = member.role.toUpperCase().replace(' ', '_');
 
   // PROJECT ADMIN and ADMIN roles have full access to everything
-  if (role === 'PROJECT ADMIN' || role === 'PROJECT_ADMIN' || role === 'ADMIN') {
+  if (role === 'PROJECT_ADMIN' || role === 'ADMIN') {
     return true;
   }
 
+  // Evaluate custom role if assigned
+  if (member.customRole) {
+    const cr = member.customRole;
+    switch (action) {
+      case 'view':
+        return true;
+      case 'create_task':
+        return cr.addTasks;
+      case 'edit_task':
+        if (cr.modifyTasks === 'ALL') return true;
+        if (cr.modifyTasks === 'ASSIGNED') {
+          if (context?.taskId) {
+            const isAssignee = await prisma.taskAssignee.findUnique({
+              where: {
+                taskId_userId: {
+                  taskId: context.taskId,
+                  userId
+                }
+              }
+            });
+            if (isAssignee) return true;
+          }
+        }
+        return false;
+      case 'submit_task':
+        return cr.changeTaskStatus;
+      case 'approve_dept_task':
+      case 'approve_final':
+        return cr.approveTasks;
+      case 'post_announcement':
+        return cr.makeAnnouncements;
+      case 'manage_members':
+        return cr.manageTeam;
+      case 'manage_departments':
+        return cr.addDepartments;
+      case 'manage_tags':
+        return cr.manageTags;
+      case 'manage_roles':
+        return cr.manageRoles;
+      case 'delete_project':
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  // Fallback to standard roles
   switch (action) {
     case 'view':
       return true; // Any project member can view
@@ -48,7 +99,7 @@ export async function hasPermission(
 
     case 'edit_task': {
       // PM, Captain can edit any task
-      if (role === 'PROJECT MANAGER' || role === 'CAPTAIN' || role === 'PROJECT_MANAGER') {
+      if (role === 'PROJECT_MANAGER' || role === 'CAPTAIN') {
         return true;
       }
       // Members and Department Heads can edit only if they are assigned to the task
@@ -68,11 +119,11 @@ export async function hasPermission(
 
     case 'approve_dept_task': {
       // PM and Captain can approve department tasks
-      if (role === 'PROJECT MANAGER' || role === 'CAPTAIN' || role === 'PROJECT_MANAGER') {
+      if (role === 'PROJECT_MANAGER' || role === 'CAPTAIN') {
         return true;
       }
       // Department Head can approve if task belongs to their department
-      if (role === 'DEPARTMENT HEAD' || role === 'DEPARTMENT_HEAD') {
+      if (role === 'DEPARTMENT_HEAD') {
         if (!member.departmentId) return false; // Must belong to a department
         
         // If a specific task is provided, check if it belongs to the department
@@ -102,16 +153,28 @@ export async function hasPermission(
 
     case 'post_announcement': {
       // Captain and Project Manager can post announcements
-      return role === 'CAPTAIN' || role === 'PROJECT MANAGER' || role === 'PROJECT_MANAGER';
+      return role === 'CAPTAIN' || role === 'PROJECT_MANAGER';
     }
 
     case 'manage_members': {
       // Captain and Project Manager can manage members
-      return role === 'CAPTAIN' || role === 'PROJECT MANAGER' || role === 'PROJECT_MANAGER';
+      return role === 'CAPTAIN' || role === 'PROJECT_MANAGER';
+    }
+
+    case 'manage_departments': {
+      return role === 'CAPTAIN' || role === 'PROJECT_MANAGER';
+    }
+
+    case 'manage_tags': {
+      return role === 'CAPTAIN' || role === 'PROJECT_MANAGER';
+    }
+
+    case 'manage_roles': {
+      return role === 'CAPTAIN' || role === 'PROJECT_MANAGER';
     }
 
     case 'delete_project':
-      return false; // Only PROJECT ADMIN/ADMIN (handled above) can delete project
+      return false; // Only PROJECT ADMIN/ADMIN can delete project
 
     default:
       return false;

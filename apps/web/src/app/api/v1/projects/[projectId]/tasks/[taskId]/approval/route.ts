@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { WorkItemState } from '@prisma/client';
+import { hasPermission } from '@/lib/permissions';
 
 export async function POST(
   req: Request,
@@ -15,23 +16,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membership = await prisma.projectMember.findUnique({
-      where: {
-        projectId_userId: {
-          projectId,
-          userId: session.userId as string
-        }
-      }
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Gated roles for review actions
-    const allowedRoles = ['PROJECT_ADMIN', 'ADMIN', 'PROJECT MANAGER', 'PROJECT_MANAGER', 'DEPARTMENT_HEAD', 'CAPTAIN'];
-    if (!allowedRoles.includes(membership.role.toUpperCase().replace(' ', '_'))) {
-      return NextResponse.json({ error: 'Only owners, managers, department heads, or captains can approve or reject tasks.' }, { status: 403 });
+    if (!await hasPermission(session.userId as string, projectId, 'approve_dept_task', { taskId })) {
+      return NextResponse.json({ error: 'Only owners, managers, department heads, captains, or authorized custom roles can approve or reject tasks.' }, { status: 403 });
     }
 
     const { decision, comment } = await req.json();

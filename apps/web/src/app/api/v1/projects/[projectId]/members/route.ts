@@ -37,7 +37,8 @@ export async function GET(
             name: true,
             color: true,
           }
-        }
+        },
+        customRole: true
       },
       orderBy: { createdAt: 'asc' }
     });
@@ -64,7 +65,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { emails, role, departmentId } = await req.json();
+    const { emails, role, customRoleId, departmentId } = await req.json();
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       return NextResponse.json({ error: 'Invalid or empty email list' }, { status: 400 });
@@ -120,6 +121,7 @@ export async function POST(
           projectId,
           userId: user.id,
           role,
+          customRoleId: customRoleId || null,
           departmentId: departmentId || undefined
         }
       });
@@ -167,7 +169,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { userId, role, departmentId } = await req.json();
+    const { userId, role, customRoleId, departmentId } = await req.json();
 
     if (!userId || !role) {
       return NextResponse.json({ error: 'UserId and Role are required' }, { status: 400 });
@@ -201,6 +203,7 @@ export async function PUT(
       },
       data: {
         role,
+        customRoleId: customRoleId !== undefined ? customRoleId : null,
         departmentId: departmentId || null
       },
       include: {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
+import { hasPermission } from '@/lib/permissions';
 
 export async function GET(
   req: Request,
@@ -56,15 +57,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: session.userId as string } }
-    });
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const allowedRoles = ['PROJECT_ADMIN', 'ADMIN', 'PROJECT MANAGER', 'PROJECT_MANAGER', 'DEPARTMENT_HEAD', 'CAPTAIN'];
-    if (!allowedRoles.includes(membership.role.toUpperCase().replace(' ', '_'))) {
+    if (!await hasPermission(session.userId as string, projectId, 'post_announcement')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
