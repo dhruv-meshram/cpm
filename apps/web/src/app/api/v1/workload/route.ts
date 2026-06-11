@@ -9,12 +9,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.userId as string;
-    const stats = await queryCache.getDashboardSummary(userId);
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
 
-    return NextResponse.json(stats);
+    let data;
+    if (userId) {
+      data = await queryCache.getUserWorkload(userId);
+    } else {
+      data = await queryCache.getTeamWorkload();
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Fetch dashboard stats error:', error);
+    console.error('Fetch workload query error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

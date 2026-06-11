@@ -5,6 +5,11 @@ import { hasPermission } from '@/lib/permissions';
 import { logActivity } from '@/lib/activity';
 import { hash } from 'argon2';
 import { emitToProjectRoom } from '@/lib/ws-emitter';
+import { apiCache } from '@/lib/cache';
+import { createNotification } from '@/lib/notification-cache';
+import { permissionCache } from '@/lib/permission-cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 export async function GET(
   req: Request,
@@ -21,26 +26,29 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const members = await prisma.projectMember.findMany({
-      where: { projectId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
+    const cacheKey = `project:${projectId}:members`;
+    const members = await apiCache.get(cacheKey, 300, async () => {
+      return prisma.projectMember.findMany({
+        where: { projectId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            }
+          },
+          customRole: true
         },
-        department: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-          }
-        },
-        customRole: true
-      },
-      orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' }
+      });
     });
 
     return NextResponse.json(members);
@@ -125,16 +133,17 @@ export async function POST(
           departmentId: departmentId || undefined
         }
       });
+      await permissionCache.invalidateUser(user.id);
 
-      await prisma.notification.create({
-        data: {
-          userId: user.id,
-          projectId,
-          type: 'PROJECT_INVITATION',
-          title: 'Project Invitation',
-          content: `You have been added to the project "${projectName}" as a ${role}.`
-        }
+      await createNotification({
+        userId: user.id,
+        projectId,
+        type: 'PROJECT_INVITATION',
+        title: 'Project Invitation',
+        content: `You have been added to the project "${projectName}" as a ${role}.`
       });
+
+      apiCache.invalidateNotifications(user.id);
 
       added.push(trimmedEmail);
 
@@ -146,6 +155,15 @@ export async function POST(
         projectId
       });
     }
+
+    apiCache.invalidate(`project:${projectId}:members`);
+    apiCache.invalidateTeam(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+    await projectOverviewCache.invalidateSummary(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTeamWorkload();
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json({ added, skipped });
   } catch (error) {
@@ -210,6 +228,7 @@ export async function PUT(
         user: { select: { email: true } }
       }
     });
+    await permissionCache.invalidateUser(userId);
 
     const projectInfo = await prisma.project.findUnique({
       where: { id: projectId },
@@ -218,15 +237,14 @@ export async function PUT(
     const projectName = projectInfo?.name || 'a project';
 
     if (currentMember.role !== role) {
-      await prisma.notification.create({
-        data: {
-          userId,
-          projectId,
-          type: 'ROLE_MODIFICATION',
-          title: 'Role Updated',
-          content: `Your role in the project "${projectName}" has been changed from "${currentMember.role}" to "${role}".`
-        }
+      await createNotification({
+        userId,
+        projectId,
+        type: 'ROLE_MODIFICATION',
+        title: 'Role Updated',
+        content: `Your role in the project "${projectName}" has been changed from "${currentMember.role}" to "${role}".`
       });
+      apiCache.invalidateNotifications(userId);
     }
 
     await logActivity({
@@ -236,6 +254,16 @@ export async function PUT(
       userId: session.userId as string,
       projectId
     });
+
+    apiCache.invalidate(`project:${projectId}:members`);
+    apiCache.invalidateTeam(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+    await projectOverviewCache.invalidateSummary(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTeamWorkload(userId);
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('user', userId);
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -296,6 +324,7 @@ export async function DELETE(
         }
       }
     });
+    await permissionCache.invalidateUser(userId);
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -316,6 +345,16 @@ export async function DELETE(
       userId: session.userId as string,
       projectId
     });
+
+    apiCache.invalidate(`project:${projectId}:members`);
+    apiCache.invalidateTeam(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+    await projectOverviewCache.invalidateSummary(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTeamWorkload(userId);
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('user', userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

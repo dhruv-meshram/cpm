@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { apiCache } from '@/lib/cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -22,36 +25,49 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        _count: {
-          select: { tasks: true }
-        },
-        tasks: {
-          select: { state: true }
-        },
-        snapshots: {
-          orderBy: { calculationTime: 'desc' },
-          take: 1
+    const cacheKey = `project:${projectId}:metadata`;
+    const projectData = await apiCache.get(cacheKey, 600, async () => {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          _count: {
+            select: { tasks: true }
+          },
+          tasks: {
+            select: { state: true }
+          },
+          snapshots: {
+            orderBy: { calculationTime: 'desc' },
+            take: 1
+          }
         }
-      }
+      });
+
+      if (!project) return null;
+
+      const completedTasks = project.tasks.filter(t => t.state === 'DONE').length;
+      const lastCpmRun = project.snapshots[0]?.calculationTime || null;
+
+      return {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        targetDate: project.targetDate,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        totalTasks: project._count.tasks,
+        completedTasks,
+        lastUpdated: project.updatedAt,
+        lastCpmRun
+      };
     });
 
-    if (!project) {
+    if (!projectData) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const completedTasks = project.tasks.filter(t => t.state === 'DONE').length;
-    const lastCpmRun = project.snapshots[0]?.calculationTime || null;
-
-    return NextResponse.json({
-      ...project,
-      totalTasks: project._count.tasks,
-      completedTasks,
-      lastUpdated: project.updatedAt,
-      lastCpmRun
-    });
+    return NextResponse.json(projectData);
   } catch (error) {
     console.error('Fetch project details error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -92,6 +108,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       }
     });
 
+    // Invalidate project metadata cache
+    apiCache.invalidate(`project:${projectId}:metadata`);
+    apiCache.invalidateProject(projectId);
+    await projectOverviewCache.invalidateSummary(projectId);
+    await projectOverviewCache.invalidateHealth(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateDashboardStats();
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('project', projectId);
+
     return NextResponse.json(project);
   } catch (error) {
     console.error('Update project error:', error);
@@ -123,6 +150,16 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
     await prisma.project.delete({
       where: { id: projectId }
     });
+
+    apiCache.invalidateProject(projectId);
+    apiCache.invalidateTask(projectId);
+    apiCache.invalidateDepartment(projectId);
+    apiCache.invalidateTeam(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateDashboardStats();
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('project', projectId);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

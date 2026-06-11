@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiCache } from '@/lib/cache';
 
 const updateTagSchema = z.object({
   name: z.string().min(1).max(50),
@@ -51,6 +52,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       }
     });
 
+    apiCache.invalidate(`project:${projectId}:tags`);
+
     return NextResponse.json(tag);
   } catch (error) {
     console.error('Update tag error:', error);
@@ -77,6 +80,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
     await prisma.tag.delete({
       where: { id: tagId, projectId }
     });
+
+    apiCache.invalidate(`project:${projectId}:tags`);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

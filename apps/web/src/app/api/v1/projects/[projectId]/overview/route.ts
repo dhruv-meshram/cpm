@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { formatActivityLog, checkAndLogOverdueTasks } from '@/lib/activity';
+import { checkAndLogOverdueTasks } from '@/lib/activity';
+import { activityCache } from '@/lib/activity-cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -24,190 +26,65 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch the mega-object
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        tasks: {
-          select: { id: true, state: true, endDate: true }
-        },
-        dependencies: {
-          select: { predecessorTaskId: true, successorTaskId: true }
-        },
-        snapshots: {
-          orderBy: { calculationTime: 'desc' },
-          take: 1
-        },
-        owner: {
-          select: { name: true }
-        }
-      }
-    });
+    // 1. Fetch cached summary & schedule & cpmInsights
+    const summaryData = await projectOverviewCache.getProjectSummary(projectId);
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
+    // 2. Fetch cached task & dependency statistics
+    const statsData = await projectOverviewCache.getProjectStats(projectId);
 
-    // Fetch Recent Activity
-    const taskIds = project.tasks.map(t => t.id);
-    const activitiesData = await prisma.activityLog.findMany({
-      where: {
-        OR: [
-          { entityType: 'Project', entityId: projectId },
-          { entityType: 'Task', entityId: { in: taskIds } }
-        ]
-      },
-      orderBy: { timestamp: 'desc' },
-      take: 10,
-      include: {
-        user: { select: { name: true } }
-      }
-    });
+    // 3. Fetch cached health and approvals
+    const healthData = await projectOverviewCache.getProjectHealth(projectId);
 
-    const activities = activitiesData.map(act => {
-      const formatted = formatActivityLog(act, project.name);
-      formatted.projectId = projectId;
-      return formatted;
-    });
+    // 4. Fetch cached department breakdowns
+    const deptsData = await projectOverviewCache.getDepartmentBreakdown(projectId, summaryData.criticalPath);
 
-    // Calculate Task Metrics
-    const totalTasks = project.tasks.length;
-    const completedTasks = project.tasks.filter(t => t.state === 'DONE').length;
-    const inProgressTasks = project.tasks.filter(t => t.state === 'IN_PROGRESS' || t.state === 'REVIEW').length;
-    const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    const overdueTasksCount = project.tasks.filter(t =>
-      t.state !== 'DONE' && (t.state === 'BACKLOG' || (t.endDate && new Date(t.endDate) < new Date()))
-    ).length;
+    // 5. Fetch team stats (ensuring it is pre-cached / built)
+    await projectOverviewCache.getTeamStats(projectId);
 
-    // Calculate Dependency Metrics
-    const totalDependencies = project.dependencies.length;
-    let noDependencies = 0;
-    let multiplePredecessors = 0;
-    let multipleSuccessors = 0;
-
-    if (totalTasks > 0) {
-      const predCounts = new Map<string, number>();
-      const succCounts = new Map<string, number>();
-
-      project.dependencies.forEach(d => {
-        predCounts.set(d.successorTaskId, (predCounts.get(d.successorTaskId) || 0) + 1);
-        succCounts.set(d.predecessorTaskId, (succCounts.get(d.predecessorTaskId) || 0) + 1);
+    // 6. Fetch Recent Activity (live feed, not dashboard cached summary)
+    const dbQuery = async () => {
+      const tasks = await prisma.task.findMany({
+        where: { projectId, deletedAt: null },
+        select: { id: true }
       });
+      const taskIds = tasks.map(t => t.id);
 
-      project.tasks.forEach(t => {
-        const preds = predCounts.get(t.id) || 0;
-        const succs = succCounts.get(t.id) || 0;
-        
-        if (preds === 0 && succs === 0) noDependencies++;
-        if (preds > 1) multiplePredecessors++;
-        if (succs > 1) multipleSuccessors++;
-      });
-    }
-
-    // CPM Insights
-    const latestSnapshot = project.snapshots[0];
-    const projectDuration = latestSnapshot ? (latestSnapshot.projectDuration as any).toNumber?.() || Number(latestSnapshot.projectDuration) || 0 : 0;
-    const criticalPath = latestSnapshot ? (latestSnapshot.criticalPath as any[]) || [] : [];
-    const criticalTasksCount = criticalPath.length;
-
-    // Fetch departments and calculate stats
-    const depts = await prisma.department.findMany({
-      where: { projectId },
-      include: {
-        tasks: {
-          select: {
-            id: true,
-            state: true,
-            endDate: true
-          }
+      return prisma.activityLog.findMany({
+        where: {
+          OR: [
+            { entityType: 'Project', entityId: projectId },
+            { entityType: 'Task', entityId: { in: taskIds } }
+          ]
+        },
+        orderBy: { timestamp: 'desc' },
+        take: 50,
+        include: {
+          user: { select: { name: true, avatar: true } }
         }
-      }
-    });
+      });
+    };
 
-    const deptStats = depts.map(d => {
-      const dTasks = d.tasks;
-      const dTotal = dTasks.length;
-      const dCompleted = dTasks.filter(t => t.state === 'DONE').length;
-      const dInProgress = dTasks.filter(t => t.state === 'IN_PROGRESS' || t.state === 'REVIEW').length;
-      const dProgressPercent = dTotal > 0 ? Math.round((dCompleted / dTotal) * 100) : 0;
-      const dOverdue = dTasks.filter(t =>
-        t.state !== 'DONE' && (t.state === 'BACKLOG' || (t.endDate && new Date(t.endDate) < new Date()))
-      ).length;
-      const dCritical = dTasks.filter(t => criticalPath.includes(t.id)).length;
-
-      return {
-        id: d.id,
-        name: d.name,
-        color: d.color,
-        totalTasks: dTotal,
-        completedTasks: dCompleted,
-        inProgressTasks: dInProgress,
-        progressPercent: dProgressPercent,
-        overdueTasksCount: dOverdue,
-        criticalTasksCount: dCritical
-      };
-    });
-
-    const plannedFinish = project.targetDate;
-    let forecastFinish = null;
-    let daysVariance = 0;
-
-    if (latestSnapshot) {
-      // Very naive date math for display purposes
-      forecastFinish = new Date(new Date(latestSnapshot.calculationTime).getTime() + projectDuration * 86400000);
-      if (plannedFinish) {
-        const diffTime = plannedFinish.getTime() - forecastFinish.getTime();
-        daysVariance = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-      }
-    }
-
-    // Dynamic Health Override based on Variance
-    let health = project.health;
-    if (daysVariance < 0 && health === 'HEALTHY') {
-      health = 'WARNING';
-    }
+    const cacheKey = `activity:project:${projectId}`;
+    const cachedFeed = await activityCache.getFeed(cacheKey, dbQuery);
+    const activities = cachedFeed.slice(0, 10);
 
     return NextResponse.json({
-      project: {
-        id: project.id,
-        identifier: project.identifier,
-        name: project.name,
-        description: project.description,
-        status: project.status,
-        health,
-        owner: project.owner?.name || 'Unassigned',
-        createdAt: project.createdAt,
-        updatedAt: project.updatedAt
-      },
+      project: summaryData.project,
       metrics: {
-        totalTasks,
-        completedTasks,
-        inProgressTasks,
-        criticalTasksCount,
-        dependenciesCount: totalDependencies,
-        progressPercent,
-        projectDuration,
-        overdueTasksCount,
+        totalTasks: statsData.totalTasks,
+        completedTasks: statsData.completedTasks,
+        inProgressTasks: statsData.inProgressTasks + statsData.reviewTasks,
+        criticalTasksCount: summaryData.cpmInsights.criticalPathLength,
+        dependenciesCount: statsData.dependenciesCount,
+        progressPercent: healthData.completionPercentage,
+        projectDuration: summaryData.cpmInsights.criticalPathDuration,
+        overdueTasksCount: statsData.overdueTasks
       },
-      schedule: {
-        plannedFinish,
-        forecastFinish,
-        daysVariance,
-      },
-      cpmInsights: {
-        criticalPathLength: criticalTasksCount,
-        criticalPathDuration: projectDuration,
-        totalFloatAvailable: 0, 
-        longestDependencyChain: criticalTasksCount, 
-        lastRunAt: latestSnapshot?.calculationTime || null
-      },
-      dependencyStats: {
-        total: totalDependencies,
-        noDependencies,
-        multiplePredecessors,
-        multipleSuccessors
-      },
-      departments: deptStats,
+      schedule: summaryData.schedule,
+      cpmInsights: summaryData.cpmInsights,
+      dependencyStats: statsData.dependencyStats,
+      departments: deptsData,
+      approvals: healthData.approvals,
       activities
     });
 

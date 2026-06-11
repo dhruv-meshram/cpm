@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { hasPermission } from '@/lib/permissions';
+import { apiCache } from '@/lib/cache';
+import { permissionCache } from '@/lib/permission-cache';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -12,10 +14,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
 
     const { projectId } = await params;
 
-    // Fetch all custom roles for this project
-    const roles = await prisma.projectCustomRole.findMany({
-      where: { projectId },
-      orderBy: { name: 'asc' }
+    const cacheKey = `project:${projectId}:roles`;
+    const roles = await apiCache.get(cacheKey, 900, async () => {
+      // Fetch all custom roles for this project
+      return prisma.projectCustomRole.findMany({
+        where: { projectId },
+        orderBy: { name: 'asc' }
+      });
     });
 
     return NextResponse.json(roles);
@@ -85,6 +90,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       }
     });
 
+    // Invalidate roles and members cache
+    apiCache.invalidate(`project:${projectId}:roles`);
+    apiCache.invalidate(`project:${projectId}:members`);
+    await permissionCache.invalidateProject(projectId);
+
     return NextResponse.json(newRole, { status: 201 });
   } catch (error) {
     console.error('Create custom role error:', error);
@@ -152,6 +162,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       }
     });
 
+    // Invalidate roles and members cache
+    apiCache.invalidate(`project:${projectId}:roles`);
+    apiCache.invalidate(`project:${projectId}:members`);
+    await permissionCache.invalidateProject(projectId);
+
     return NextResponse.json(updatedRole);
   } catch (error) {
     console.error('Update custom role error:', error);
@@ -196,6 +211,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
     await prisma.projectCustomRole.delete({
       where: { id: roleId }
     });
+
+    // Invalidate roles and members cache
+    apiCache.invalidate(`project:${projectId}:roles`);
+    apiCache.invalidate(`project:${projectId}:members`);
+    await permissionCache.invalidateProject(projectId);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

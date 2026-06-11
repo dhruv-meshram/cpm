@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/permissions';
+import { apiCache } from '@/lib/cache';
 
 const createTagSchema = z.object({
   name: z.string().min(1).max(50),
@@ -22,23 +23,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     });
     if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const tags = await prisma.tag.findMany({
-      where: { projectId },
-      include: {
-        _count: {
-          select: { tasks: true }
-        }
-      },
-      orderBy: { name: 'asc' }
-    });
+    const cacheKey = `project:${projectId}:tags`;
+    const transformed = await apiCache.get(cacheKey, 1800, async () => {
+      const tags = await prisma.tag.findMany({
+        where: { projectId },
+        include: {
+          _count: {
+            select: { tasks: true }
+          }
+        },
+        orderBy: { name: 'asc' }
+      });
 
-    const transformed = tags.map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      color: t.color,
-      createdAt: t.createdAt,
-      taskCount: t._count.tasks
-    }));
+      return tags.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        createdAt: t.createdAt,
+        taskCount: t._count.tasks
+      }));
+    });
 
     return NextResponse.json(transformed);
   } catch (error) {
@@ -82,6 +86,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         color: color || '#7f8c8d'
       }
     });
+
+    // Invalidate tags cache
+    apiCache.invalidate(`project:${projectId}:tags`);
 
     return NextResponse.json(tag, { status: 201 });
   } catch (error) {

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 const bulkMoveSchema = z.object({
   taskIds: z.array(z.string()).min(1),
@@ -52,6 +54,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         })
       )
     );
+
+    await projectOverviewCache.invalidateTaskData(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateDepartmentStats(targetDepartmentId);
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json({ success: true, count: taskIds.length });
   } catch (error) {

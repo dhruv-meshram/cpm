@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { permissionCache } from './permission-cache';
 
 export type ProjectRole = string;
 
@@ -10,8 +11,13 @@ export async function getProjectMember(userId: string, projectId: string) {
 }
 
 export async function getProjectRole(userId: string, projectId: string): Promise<string | null> {
-  const member = await getProjectMember(userId, projectId);
-  return member?.role || null;
+  try {
+    const roles = await permissionCache.getUserRoles(userId);
+    return roles.projectRoles[projectId] || null;
+  } catch (err) {
+    const member = await getProjectMember(userId, projectId);
+    return member?.role || null;
+  }
 }
 
 export async function hasPermission(
@@ -30,6 +36,27 @@ export async function hasPermission(
     | 'manage_departments'
     | 'manage_tags'
     | 'manage_roles',
+  context?: { taskId?: string; departmentId?: string }
+): Promise<boolean> {
+  // Check permission cache first
+  const cachedResult = await permissionCache.getPermissionCheck(userId, projectId, action, context);
+  if (cachedResult !== null) {
+    return cachedResult;
+  }
+
+  // Cache miss -> Resolve from database
+  const allowed = await resolvePermissionFromDB(userId, projectId, action, context);
+
+  // Cache result
+  await permissionCache.setPermissionCheck(userId, projectId, action, context, allowed);
+
+  return allowed;
+}
+
+async function resolvePermissionFromDB(
+  userId: string,
+  projectId: string,
+  action: string,
   context?: { taskId?: string; departmentId?: string }
 ): Promise<boolean> {
   const member = await getProjectMember(userId, projectId);

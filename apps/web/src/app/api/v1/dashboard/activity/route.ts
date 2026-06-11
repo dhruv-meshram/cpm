@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { formatActivityLog, checkAndLogOverdueTasks } from '@/lib/activity';
+import { activityCache } from '@/lib/activity-cache';
 
 export async function GET(req: Request) {
   try {
@@ -24,7 +25,28 @@ export async function GET(req: Request) {
     // Check overdue tasks for all user's projects
     await Promise.all(projectIds.map(id => checkAndLogOverdueTasks(id)));
 
-    // Get all tasks in those projects to get their activity
+    // Try dashboard activity feed cache
+    const dbQuery = async () => {
+      return prisma.activityLog.findMany({
+        orderBy: { timestamp: 'desc' },
+        take: 50,
+        include: {
+          user: { select: { name: true, avatar: true } }
+        }
+      });
+    };
+
+    const cacheKey = 'activity:dashboard';
+    const cachedFeed = await activityCache.getFeed(cacheKey, dbQuery);
+
+    // Filter by projects the user has access to
+    const filteredData = cachedFeed.filter((item: any) => projectIds.includes(item.projectId));
+
+    if (filteredData.length >= limit) {
+      return NextResponse.json(filteredData.slice(0, limit));
+    }
+
+    // Get all tasks in those projects to get their activity (fallback query)
     const taskIds = await prisma.task.findMany({
       where: { projectId: { in: projectIds } },
       select: { id: true }

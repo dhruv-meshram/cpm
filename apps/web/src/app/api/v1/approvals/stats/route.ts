@@ -9,12 +9,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.userId as string;
-    const stats = await queryCache.getDashboardSummary(userId);
-
-    return NextResponse.json(stats);
+    const data = await queryCache.getApprovalStats();
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Fetch dashboard stats error:', error);
+    console.error('Fetch approval stats query error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

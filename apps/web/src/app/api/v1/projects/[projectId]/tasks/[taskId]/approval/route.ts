@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
+import { apiCache } from '@/lib/cache';
 import { WorkItemState } from '@prisma/client';
 import { hasPermission } from '@/lib/permissions';
+import { createNotification } from '@/lib/notification-cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 export async function POST(
   req: Request,
@@ -60,15 +64,13 @@ export async function POST(
     });
 
     for (const assignee of assignees) {
-      await prisma.notification.create({
-        data: {
-          userId: assignee.userId,
-          projectId,
-          taskId,
-          title: `Task ${decision === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-          content: `Task "${task.title}" has been ${decision.toLowerCase()} by ${approval.reviewer.name}.${comment ? ` Notes: "${comment}"` : ''}`,
-          type: 'TASK_STATUS_CHANGE'
-        }
+      await createNotification({
+        userId: assignee.userId,
+        projectId,
+        taskId,
+        title: `Task ${decision === 'APPROVED' ? 'Approved' : 'Rejected'}`,
+        content: `Task "${task.title}" has been ${decision.toLowerCase()} by ${approval.reviewer.name}.${comment ? ` Notes: "${comment}"` : ''}`,
+        type: 'TASK_STATUS_CHANGE'
       });
     }
 
@@ -81,6 +83,19 @@ export async function POST(
       oldValue: { state: 'REVIEW' },
       newValue: { state: decision === 'APPROVED' ? 'DONE' : 'TODO' }
     });
+
+    apiCache.invalidateApprovals(projectId);
+    apiCache.invalidateTask(projectId);
+    apiCache.invalidateDepartment(projectId);
+    await projectOverviewCache.invalidateTaskData(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateApprovalStats();
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateSearchCache();
+    for (const assignee of assignees) {
+      apiCache.invalidateNotifications(assignee.userId);
+    }
 
     return NextResponse.json({ success: true, approval, task });
   } catch (error) {

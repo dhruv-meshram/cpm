@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
+import { apiCache } from '@/lib/cache';
 import { z } from 'zod';
+import { queryCache } from '@/lib/query-cache';
 
 const createProjectSchema = z.object({
   name: z.string().min(1),
@@ -185,6 +187,12 @@ export async function POST(req: Request) {
       action: 'Project Created',
       userId
     });
+
+    apiCache.invalidateProject(project.id);
+    
+    // Invalidate database query caches
+    await queryCache.invalidateDashboardStats();
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {

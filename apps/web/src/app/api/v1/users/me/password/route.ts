@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { verify, hash } from 'argon2';
 import { z } from 'zod';
+import { apiCache } from '@/lib/cache';
 
 const passwordSchema = z.object({
   currentPassword: z.string(),
@@ -45,6 +46,8 @@ export async function PUT(req: Request) {
       where: { id: user.id },
       data: { passwordHash: newPasswordHash }
     });
+
+    apiCache.invalidate(`user:${user.id}:profile`);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

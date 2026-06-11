@@ -3,6 +3,10 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { hasPermission } from '@/lib/permissions';
+import { apiCache } from '@/lib/cache';
+import { permissionCache } from '@/lib/permission-cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 const createDepartmentSchema = z.object({
   name: z.string().min(1),
@@ -23,32 +27,35 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     });
     if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const departments = await prisma.department.findMany({
-      where: { projectId },
-      include: {
-        tasks: {
-          where: { deletedAt: null },
-          select: { id: true, state: true }
-        }
-      },
-      orderBy: { sortOrder: 'asc' }
-    });
+    const cacheKey = `project:${projectId}:departments`;
+    const transformed = await apiCache.get(cacheKey, 600, async () => {
+      const departments = await prisma.department.findMany({
+        where: { projectId },
+        include: {
+          tasks: {
+            where: { deletedAt: null },
+            select: { id: true, state: true }
+          }
+        },
+        orderBy: { sortOrder: 'asc' }
+      });
 
-    const transformed = departments.map(d => {
-      const totalTasks = d.tasks.length;
-      const completedTasks = d.tasks.filter(t => t.state === 'DONE').length;
-      const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-      return {
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        color: d.color,
-        archived: d.archived,
-        sortOrder: d.sortOrder,
-        createdAt: d.createdAt,
-        taskCount: totalTasks,
-        completionPercentage
-      };
+      return departments.map(d => {
+        const totalTasks = d.tasks.length;
+        const completedTasks = d.tasks.filter(t => t.state === 'DONE').length;
+        const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        return {
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          color: d.color,
+          archived: d.archived,
+          sortOrder: d.sortOrder,
+          createdAt: d.createdAt,
+          taskCount: totalTasks,
+          completionPercentage
+        };
+      });
     });
 
     return NextResponse.json(transformed);
@@ -100,6 +107,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
         sortOrder: nextSort
       }
     });
+
+    // Invalidate departments cache and project metadata cache
+    apiCache.invalidate(`project:${projectId}:departments`);
+    apiCache.invalidate(`project:${projectId}:metadata`);
+    await permissionCache.invalidateProject(projectId);
+    apiCache.invalidateDepartment(projectId);
+    await projectOverviewCache.invalidateDepartments(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateDepartmentStats(department.id);
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json(department, { status: 201 });
   } catch (error) {

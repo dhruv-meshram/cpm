@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { randomUUID } from 'crypto';
 import { emitToProjectRoom } from '@/lib/ws-emitter';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
 
 export async function POST(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   try {
@@ -164,6 +166,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
     } catch (err) {
       console.error('Error saving CPM snapshot:', err);
     }
+
+    await projectOverviewCache.invalidateAll(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json({ runId, status: 'processing' }, { status: 202 });
   } catch (error) {

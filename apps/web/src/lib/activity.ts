@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { emitToProjectRoom } from './ws-emitter';
+import { apiCache } from './cache';
+import { activityCache } from './activity-cache';
+import { createNotification } from './notification-cache';
 
 interface LogActivityParams {
   entityType: string;
@@ -85,7 +88,7 @@ export async function logActivity({
     }
 
     // Create the enhanced activity log entry
-    await prisma.activityLog.create({
+    const createdLog = await prisma.activityLog.create({
       data: {
         entityType,
         entityId,
@@ -98,6 +101,9 @@ export async function logActivity({
         userRole,
       }
     });
+
+    // Push new activity incrementally to cached feeds
+    await activityCache.handleNewActivity(createdLog, projectId);
 
     // Notify assignees of any task/dependency activity
     try {
@@ -113,16 +119,15 @@ export async function logActivity({
         if (task && task.projectId) {
           for (const assignee of assignees) {
             if (assignee.userId === userId) continue;
-            await prisma.notification.create({
-              data: {
-                userId: assignee.userId,
-                projectId: task.projectId,
-                taskId: entityId,
-                title: `Task Activity`,
-                content: `Activity on your assigned task "${task.title}": ${action}`,
-                type: 'TASK_STATUS_CHANGE'
-              }
+            await createNotification({
+              userId: assignee.userId,
+              projectId: task.projectId,
+              taskId: entityId,
+              title: `Task Activity`,
+              content: `Activity on your assigned task "${task.title}": ${action}`,
+              type: 'TASK_STATUS_CHANGE'
             });
+            apiCache.invalidateNotifications(assignee.userId);
           }
         }
       } else if (entityType === 'Project') {
@@ -152,18 +157,17 @@ export async function logActivity({
             const otherTitle = isPred ? succTitle : predTitle;
             const otherCode = isPred ? `CP-${succId.slice(0, 4).toUpperCase()}` : `CP-${predId.slice(0, 4).toUpperCase()}`;
             
-            await prisma.notification.create({
-              data: {
-                userId: assignee.userId,
-                projectId: entityId,
-                taskId: assignee.taskId,
-                title: isAdded ? `Dependency Added` : `Dependency Removed`,
-                content: isAdded 
-                  ? `A dependency was added between your task "${myTitle}" and "${otherTitle}" (${otherCode}).`
-                  : `The dependency between your task "${myTitle}" and "${otherTitle}" (${otherCode}) was removed.`,
-                type: 'TASK_STATUS_CHANGE'
-              }
+            await createNotification({
+              userId: assignee.userId,
+              projectId: entityId,
+              taskId: assignee.taskId,
+              title: isAdded ? `Dependency Added` : `Dependency Removed`,
+              content: isAdded 
+                ? `A dependency was added between your task "${myTitle}" and "${otherTitle}" (${otherCode}).`
+                : `The dependency between your task "${myTitle}" and "${otherTitle}" (${otherCode}) was removed.`,
+              type: 'TASK_STATUS_CHANGE'
             });
+            apiCache.invalidateNotifications(assignee.userId);
           }
         }
       }

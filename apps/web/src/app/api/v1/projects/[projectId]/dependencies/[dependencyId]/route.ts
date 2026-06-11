@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ projectId: string, dependencyId: string }> }) {
   try {
@@ -38,6 +39,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
       oldValue: { predecessorTaskId: dep.predecessorTaskId, successorTaskId: dep.successorTaskId },
       newValue: { predecessorTaskId: dep.predecessorTaskId, successorTaskId: dep.successorTaskId }
     });
+
+    await projectOverviewCache.invalidateStats(projectId);
+    await projectOverviewCache.invalidateHealth(projectId);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

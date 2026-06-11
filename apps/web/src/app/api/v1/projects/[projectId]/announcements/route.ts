@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { hasPermission } from '@/lib/permissions';
+import { createNotification } from '@/lib/notification-cache';
 
 export async function GET(
   req: Request,
@@ -97,14 +98,12 @@ export async function POST(
     });
 
     for (const member of members) {
-      await prisma.notification.create({
-        data: {
-          userId: member.userId,
-          projectId,
-          title: `New Project Announcement: ${title}`,
-          content: `${announcement.creator.name} posted: "${title}"`,
-          type: 'ANNOUNCEMENT'
-        }
+      await createNotification({
+        userId: member.userId,
+        projectId,
+        title: `New Project Announcement: ${title}`,
+        content: `${announcement.creator.name} posted: "${title}"`,
+        type: 'ANNOUNCEMENT'
       });
     }
 

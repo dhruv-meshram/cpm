@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
+import { apiCache } from '@/lib/cache';
 import { z } from 'zod';
+import { createNotification } from '@/lib/notification-cache';
 import { randomUUID } from 'crypto';
 import { hasPermission } from '@/lib/permissions';
+import { queryCache } from '@/lib/query-cache';
+import { permissionCache } from '@/lib/permission-cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
@@ -175,15 +180,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       const projectName = projectInfo?.name || 'a project';
       
       for (const userId of assigneeIds) {
-        await prisma.notification.create({
-          data: {
-            userId,
-            projectId,
-            taskId: task.id,
-            type: 'TASK_ASSIGNED',
-            title: 'Task Assigned',
-            content: `You have been assigned to the task "${title}" in project "${projectName}".`
-          }
+        await createNotification({
+          userId,
+          projectId,
+          taskId: task.id,
+          type: 'TASK_ASSIGNED',
+          title: 'Task Assigned',
+          content: `You have been assigned to the task "${title}" in project "${projectName}".`
         });
       }
     }
@@ -194,6 +197,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       action: `Task Created: ${title}`,
       userId: session.userId as string
     });
+
+    apiCache.invalidateTask(projectId);
+    await projectOverviewCache.invalidateTaskData(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+    
+    // Invalidate database query caches
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateTeamWorkload();
+    await queryCache.invalidateSearchCache();
+
+    if (assigneeIds && assigneeIds.length > 0) {
+      for (const userId of assigneeIds) {
+        apiCache.invalidateNotifications(userId);
+        await permissionCache.invalidateUserProject(userId, projectId);
+      }
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

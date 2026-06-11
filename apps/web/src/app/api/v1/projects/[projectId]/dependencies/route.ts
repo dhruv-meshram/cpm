@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activity';
 import { z } from 'zod';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
 
 const createDependencySchema = z.object({
   predecessorTaskId: z.string(),
@@ -66,6 +67,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       oldValue: { predecessorTaskId, successorTaskId },
       newValue: { predecessorTaskId, successorTaskId }
     });
+
+    await projectOverviewCache.invalidateStats(projectId);
+    await projectOverviewCache.invalidateHealth(projectId);
 
     return NextResponse.json(dependency, { status: 201 });
   } catch (error: any) {

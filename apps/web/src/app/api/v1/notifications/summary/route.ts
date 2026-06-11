@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { queryCache } from '@/lib/query-cache';
+import { notificationCache } from '@/lib/notification-cache';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getSession();
     if (!session || !session.userId) {
@@ -10,11 +10,11 @@ export async function GET(req: Request) {
     }
 
     const userId = session.userId as string;
-    const stats = await queryCache.getDashboardSummary(userId);
+    const summary = await notificationCache.getSummary(userId);
 
-    return NextResponse.json(stats);
+    return NextResponse.json(summary);
   } catch (error) {
-    console.error('Fetch dashboard stats error:', error);
+    console.error('Fetch notification summary error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiCache } from '@/lib/cache';
+import { permissionCache } from '@/lib/permission-cache';
+import { queryCache } from '@/lib/query-cache';
 
 const updateDepartmentSchema = z.object({
   name: z.string().min(1).optional(),
@@ -68,6 +71,15 @@ export async function PUT(
         ...(sortOrder !== undefined && { sortOrder })
       }
     });
+
+    apiCache.invalidate(`project:${projectId}:departments`);
+    apiCache.invalidate(`project:${projectId}:metadata`);
+    apiCache.invalidateDepartment(projectId);
+    await permissionCache.invalidateProject(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateDepartmentStats(departmentId);
+    await queryCache.invalidateSearchCache();
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -156,6 +168,18 @@ export async function DELETE(
     await prisma.department.delete({
       where: { id: departmentId }
     });
+
+    apiCache.invalidate(`project:${projectId}:departments`);
+    apiCache.invalidate(`project:${projectId}:metadata`);
+    apiCache.invalidateDepartment(projectId);
+    await permissionCache.invalidateProject(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateDepartmentStats(departmentId);
+    if (fallbackDepartmentId) {
+      await queryCache.invalidateDepartmentStats(fallbackDepartmentId);
+    }
+    await queryCache.invalidateSearchCache();
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {

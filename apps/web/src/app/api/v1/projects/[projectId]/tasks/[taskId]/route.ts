@@ -3,6 +3,11 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity, formatActivityLog } from '@/lib/activity';
 import { hasPermission } from '@/lib/permissions';
+import { apiCache } from '@/lib/cache';
+import { projectOverviewCache } from '@/lib/project-overview-cache';
+import { queryCache } from '@/lib/query-cache';
+import { permissionCache } from '@/lib/permission-cache';
+import { createNotification } from '@/lib/notification-cache';
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string, taskId: string }> }) {
   try {
@@ -254,15 +259,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       });
       for (const m of membersToNotify) {
         if (m.userId === session.userId) continue;
-        await prisma.notification.create({
-          data: {
-            userId: m.userId,
-            projectId,
-            taskId: task.id,
-            title: 'Task Review Requested',
-            content: `Task "${task.title}" has been submitted for review in project "${projectName}".`,
-            type: 'TASK_STATUS_CHANGE'
-          }
+        await createNotification({
+          userId: m.userId,
+          projectId,
+          taskId: task.id,
+          title: 'Task Review Requested',
+          content: `Task "${task.title}" has been submitted for review in project "${projectName}".`,
+          type: 'TASK_STATUS_CHANGE'
         });
       }
     }
@@ -271,15 +274,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
     if (assigneeIds !== undefined) {
       const newlyAssignedIds = assigneeIds.filter((id: string) => !existingAssigneeIds.includes(id));
       for (const userId of newlyAssignedIds) {
-        await prisma.notification.create({
-          data: {
-            userId,
-            projectId,
-            taskId,
-            type: 'TASK_ASSIGNED',
-            title: 'Task Assigned',
-            content: `You have been assigned to the task "${task.title}" in project "${projectName}".`
-          }
+        await createNotification({
+          userId,
+          projectId,
+          taskId,
+          type: 'TASK_ASSIGNED',
+          title: 'Task Assigned',
+          content: `You have been assigned to the task "${task.title}" in project "${projectName}".`
         });
       }
     }
@@ -289,15 +290,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       const currentAssigneeIds = assigneeIds !== undefined ? assigneeIds : existingAssigneeIds;
       const notifyUsers = currentAssigneeIds.filter((id: string) => id !== session.userId);
       for (const userId of notifyUsers) {
-        await prisma.notification.create({
-          data: {
-            userId,
-            projectId,
-            taskId,
-            type: 'TASK_STATUS_CHANGE',
-            title: 'Task Status Changed',
-            content: `The status of your assigned task "${task.title}" in project "${projectName}" was changed from "${existingTask.state}" to "${state}".`
-          }
+        await createNotification({
+          userId,
+          projectId,
+          taskId,
+          type: 'TASK_STATUS_CHANGE',
+          title: 'Task Status Changed',
+          content: `The status of your assigned task "${task.title}" in project "${projectName}" was changed from "${existingTask.state}" to "${state}".`
         });
       }
     }
@@ -307,16 +306,38 @@ export async function PUT(req: Request, { params }: { params: Promise<{ projectI
       const currentAssigneeIds = assigneeIds !== undefined ? assigneeIds : existingAssigneeIds;
       const notifyUsers = currentAssigneeIds.filter((id: string) => id !== session.userId);
       for (const userId of notifyUsers) {
-        await prisma.notification.create({
-          data: {
-            userId,
-            projectId,
-            taskId,
-            type: 'TASK_MODIFICATION',
-            title: 'Task Updated',
-            content: `The task "${task.title}" you are assigned to in project "${projectName}" has been updated. Changes: ${changes.join(', ')}.`
-          }
+        await createNotification({
+          userId,
+          projectId,
+          taskId,
+          type: 'TASK_MODIFICATION',
+          title: 'Task Updated',
+          content: `The task "${task.title}" you are assigned to in project "${projectName}" has been updated. Changes: ${changes.join(', ')}.`
         });
+      }
+    }
+
+    apiCache.invalidateTask(projectId);
+    apiCache.invalidateDepartment(projectId);
+    await projectOverviewCache.invalidateTaskData(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateTeamWorkload();
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('task', taskId);
+    const finalAssigneeIds = assigneeIds !== undefined ? assigneeIds : existingAssigneeIds;
+    if (finalAssigneeIds && finalAssigneeIds.length > 0) {
+      for (const userId of finalAssigneeIds) {
+        apiCache.invalidateNotifications(userId);
+      }
+    }
+
+    if (assigneeIds !== undefined) {
+      const affectedUserIds = Array.from(new Set([...existingAssigneeIds, ...assigneeIds]));
+      for (const uId of affectedUserIds) {
+        await permissionCache.invalidateUserProject(uId, projectId);
       }
     }
 
@@ -348,6 +369,17 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ proje
       where: { id: taskId, projectId },
       data: { deletedAt: new Date() }
     });
+
+    apiCache.invalidateTask(projectId);
+    apiCache.invalidateDepartment(projectId);
+    await projectOverviewCache.invalidateTaskData(projectId);
+    await projectOverviewCache.invalidateTeamStats(projectId);
+
+    // Invalidate database query caches
+    await queryCache.invalidateTaskStats();
+    await queryCache.invalidateTeamWorkload();
+    await queryCache.invalidateSearchCache();
+    await queryCache.invalidateEntityCache('task', taskId);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
