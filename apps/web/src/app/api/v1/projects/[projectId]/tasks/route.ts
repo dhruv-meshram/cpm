@@ -44,6 +44,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       where: { projectId, deletedAt: null },
       include: {
         departments: true,
+        taskCustomValues: true,
         taskTags: {
           include: {
             tag: true
@@ -64,7 +65,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       orderBy: { createdAt: 'asc' }
     });
 
-    return NextResponse.json(tasks);
+    const tasksWithCritical = tasks.map(task => {
+      const isCriticalVal = task.taskCustomValues.find(v => v.key === 'Critical');
+      const isCritical = isCriticalVal ? (isCriticalVal.value === 'true' || isCriticalVal.value === true) : false;
+      return {
+        ...task,
+        isCritical
+      };
+    });
+
+    return NextResponse.json(tasksWithCritical);
   } catch (error) {
     console.error('Fetch tasks error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

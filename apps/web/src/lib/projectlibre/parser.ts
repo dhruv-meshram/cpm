@@ -24,6 +24,8 @@ export interface PredecessorLink {
 
 export interface ParsedProjectLibre {
   Tasks: ProjectLibreTask[];
+  isCpmProject?: boolean;
+  cpmTasks?: CPMTask[];
 }
 
 export interface ParseResult {
@@ -41,19 +43,87 @@ export function parseProjectLibreXML(xmlContent: string): ParseResult {
     };
   }
 
+  const isCpmProject = xmlContent.includes('<CPMProject>');
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     parseAttributeValue: true,
     isArray: (name) => {
-      if (['Task', 'Resource', 'Assignment', 'PredecessorLink'].includes(name)) {
-        return true;
+      if (isCpmProject) {
+        return ['Task', 'Dependency'].includes(name);
       }
-      return false;
+      return ['Task', 'Resource', 'Assignment', 'PredecessorLink'].includes(name);
     }
   });
 
   try {
     const parsed = parser.parse(xmlContent);
+
+    if (isCpmProject) {
+      if (!parsed.CPMProject) {
+        return {
+          success: false,
+          error: "Missing expected <CPMProject> structure"
+        };
+      }
+
+      const rawTasks = parsed.CPMProject.Tasks?.Task || [];
+      const rawDeps = parsed.CPMProject.Dependencies?.Dependency || [];
+      const cpmTasks: CPMTask[] = [];
+
+      for (const t of rawTasks) {
+        const id = String(t.ID || '');
+        const title = String(t.Title || '');
+        const description = t.Description ? String(t.Description) : '';
+        const duration = Number(t.Duration || 0);
+        const isMilestone = duration === 0;
+        const isCritical = String(t.IsCritical) === 'true';
+
+        const depTypeMapReverse: Record<string, number> = { 'FS': 1, 'FF': 2, 'SS': 3, 'SF': 4 };
+
+        const taskDeps: CPMDependency[] = rawDeps
+          .filter((d: any) => String(d.SuccessorID) === id)
+          .map((d: any) => ({
+            predecessorId: String(d.PredecessorID),
+            type: depTypeMapReverse[String(d.Type).toUpperCase()] || 1
+          }));
+
+        const cpmTask: CPMTask = {
+          id,
+          name: title,
+          originalUid: parseInt(id.replace('task-', ''), 10) || 0,
+          start: t.StartDate ? String(t.StartDate) : '',
+          finish: t.EndDate ? String(t.EndDate) : '',
+          durationHours: duration * 24,
+          isSummary: false,
+          isMilestone,
+          isCritical,
+          children: [],
+          dependencies: taskDeps,
+          parentId: t.ParentID ? String(t.ParentID) : undefined,
+          wbs: ''
+        };
+
+        cpmTasks.push(cpmTask);
+      }
+
+      const parentIds = new Set(cpmTasks.map(t => t.parentId).filter(Boolean));
+      for (const t of cpmTasks) {
+        if (parentIds.has(t.id)) {
+          t.isSummary = true;
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          Tasks: [],
+          isCpmProject: true,
+          cpmTasks
+        }
+      };
+    }
+
     if (!parsed.Project || !parsed.Project.Tasks || !parsed.Project.Tasks.Task) {
       return {
         success: false,
@@ -145,7 +215,25 @@ export function transformProjectLibreData(data: ParsedProjectLibre): TransformRe
     warnings: [],
   };
 
-  if (!data || !data.Tasks) {
+  if (!data) {
+    return { tasks: [], metrics };
+  }
+
+  if (data.isCpmProject && data.cpmTasks) {
+    const tasks = data.cpmTasks;
+    metrics.totalDiscovered = tasks.length;
+    metrics.tasksToImport = tasks.length;
+    for (const t of tasks) {
+      if (t.isMilestone) metrics.milestoneCount++;
+      metrics.dependencyCount += t.dependencies.length;
+    }
+    return {
+      tasks,
+      metrics
+    };
+  }
+
+  if (!data.Tasks) {
     return { tasks: [], metrics };
   }
 
@@ -201,14 +289,33 @@ export function transformProjectLibreData(data: ParsedProjectLibre): TransformRe
       return hoistedChildren;
     }
 
+    const startStr = task.Start ? String(task.Start).split('T')[0] : '';
+    const finishStr = task.Finish ? String(task.Finish).split('T')[0] : '';
+
+    let calculatedDurationDays = 0;
+    let hasDates = false;
+    if (startStr && finishStr) {
+      const s = new Date(startStr);
+      const f = new Date(finishStr);
+      if (!isNaN(s.getTime()) && !isNaN(f.getTime())) {
+        hasDates = true;
+        const diffTime = f.getTime() - s.getTime();
+        calculatedDurationDays = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+      }
+    }
+
+    const durationHours = hasDates
+      ? (task.Milestone === 1 ? 0 : calculatedDurationDays * 24)
+      : parseDurationToHours(task.Duration);
+
     const cpmId = `task-${task.UID}`;
     const cpmTask: CPMTask = {
       id: cpmId,
       name: task.Name,
       originalUid: task.UID,
-      start: task.Start,
-      finish: task.Finish,
-      durationHours: parseDurationToHours(task.Duration),
+      start: hasDates ? `${startStr}T00:00:00` : (task.Start || ''),
+      finish: hasDates ? `${finishStr}T00:00:00` : (task.Finish || ''),
+      durationHours: durationHours,
       isSummary: task.Summary === 1,
       isMilestone: task.Milestone === 1,
       isCritical: task.Critical === 1,
@@ -236,6 +343,9 @@ export function transformProjectLibreData(data: ParsedProjectLibre): TransformRe
       }
     }
 
+    // Add to flat list first so parents are created before children
+    cpmTasks.push(cpmTask);
+
     for (const child of node.children) {
       const processedChildren = processNode(child, cpmId);
       cpmTask.children.push(...processedChildren);
@@ -251,7 +361,7 @@ export function transformProjectLibreData(data: ParsedProjectLibre): TransformRe
   }
 
   for (const root of rootNodes) {
-    cpmTasks.push(...processNode(root));
+    processNode(root);
   }
 
   for (const task of uidMapping.values()) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -28,7 +29,30 @@ export default function OverviewPage() {
       return res.json();
     },
   });
+  const [isExporting, setIsExporting] = useState(false);
 
+  const handleExport = async () => {
+    if (isExporting || !overview) return;
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/export`);
+      if (!res.ok) throw new Error('Failed to export project');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${overview.project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-cpm.xml`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      alert('Failed to export project: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
   if (isLoading || !overview) {
     return (
       <div className="max-w-[1400px] mx-auto px-8 py-8 space-y-6 animate-fade-in">
@@ -59,8 +83,12 @@ export default function OverviewPage() {
           {project.description || 'Project workspace overview and CPM analysis.'}
         </p>
         <div className="flex items-center gap-2 shrink-0">
-          <ButtonUtility className="flex items-center gap-2">
-            <Download size={14} /> Export
+          <ButtonUtility 
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            <Download size={14} /> {isExporting ? 'Exporting...' : 'Export'}
           </ButtonUtility>
           <Link href={`/projects/${projectId}/graph`}>
             <ButtonPrimary size="sm" className="flex items-center gap-2">
@@ -80,7 +108,11 @@ export default function OverviewPage() {
           { label: 'Dependencies', value: metrics.dependenciesCount },
           { label: 'Completion', value: `${metrics.progressPercent}%` },
           { label: 'Duration', value: `${metrics.projectDuration}d` },
-          { label: 'Float', value: `${cpmInsights.totalFloatAvailable}d` },
+          { 
+            label: 'Variance', 
+            value: schedule.daysVariance > 0 ? `+${schedule.daysVariance}d` : `${schedule.daysVariance}d`,
+            accent: schedule.daysVariance < 0 ? ('danger' as const) : undefined
+          },
         ].map((m) => (
           <div
             key={m.label}

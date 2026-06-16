@@ -557,7 +557,14 @@ export default function TasksPage() {
           onDeleted={closeSidebar}
           shouldFocusTags={shouldFocusTags}
           onSaved={(saved) => {
-            closeSidebar();
+            if (sidebarMode === 'edit') {
+              setActiveTask(saved);
+              setTimeout(() => {
+                alert('changes made successfully');
+              }, 100);
+            } else {
+              closeSidebar();
+            }
           }}
         />
       )}

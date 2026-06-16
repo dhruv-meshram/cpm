@@ -213,7 +213,7 @@ export function TaskSidebar({
   // Reset initialized ref when task or mode changes
   useEffect(() => {
     initializedRef.current = null;
-  }, [mode, task?.id]);
+  }, [mode, task]);
 
   // Populate form when mode/task changes
   useEffect(() => {
@@ -499,7 +499,6 @@ export function TaskSidebar({
                     value={taskState} onChange={e => setTaskState(e.target.value)}
                     className="w-full px-3 py-2.5 text-sm border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-black transition-all bg-white"
                   >
-                    <option value="BACKLOG">Overdue</option>
                     <option value="TODO">To Do</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="REVIEW">Review</option>

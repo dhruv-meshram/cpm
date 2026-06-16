@@ -64,8 +64,8 @@ async function resolvePermissionFromDB(
 
   const role = member.role.toUpperCase().replace(' ', '_');
 
-  // PROJECT ADMIN and ADMIN roles have full access to everything
-  if (role === 'PROJECT_ADMIN' || role === 'ADMIN') {
+  // PROJECT ADMIN, ADMIN, and OWNER roles have full access to everything
+  if (role === 'PROJECT_ADMIN' || role === 'ADMIN' || role === 'OWNER') {
     return true;
   }
 

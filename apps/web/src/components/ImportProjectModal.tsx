@@ -134,82 +134,28 @@ export function ImportProjectModal({ isOpen, onClose, projectId }: ImportProject
 
       if (!targetProjectId) throw new Error('No target project ID');
 
-      // 1. Create Tasks (Sequential to map IDs properly for parents, or we can just send flat and map later, but sequential guarantees parent exists if we sort them, but wait, flat list might have parents created later. 
-      // Our tree traverse generated them in parent-first order!)
-      const tasksToCreate = parsedData.tasks;
-      const idMapping = new Map<string, string>(); // cpmId -> new database id
-      
-      setImportProgress({ current: 0, total: tasksToCreate.length, message: 'Creating tasks...' });
-      
-      for (let i = 0; i < tasksToCreate.length; i++) {
-        const t = tasksToCreate[i];
-        
-        const mappedParentId = t.parentId ? idMapping.get(t.parentId) : undefined;
-        
-        // Append Z to make it a valid ISO datetime if it doesn't have timezone info
-        const formatIso = (d: string | undefined) => {
-          if (!d) return undefined;
-          return d.endsWith('Z') || d.includes('+') || d.includes('-') && d.split('T')[1]?.includes('-') ? d : `${d}Z`;
-        };
+      // Use bulk import API
+      setImportProgress({ current: 0, total: 100, message: 'Importing project tasks and dependencies...' });
 
-        const res = await fetch(`/api/v1/projects/${targetProjectId}/tasks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: t.name,
-            duration: t.durationHours > 0 ? t.durationHours / 24 : 1,
-            startDate: formatIso(t.start),
-            endDate: formatIso(t.finish),
-            parentTaskId: mappedParentId,
-            isCritical: t.isCritical
-          })
-        });
-        
-        if (!res.ok) {
-           console.error('Failed to create task', await res.text());
-           // Continue anyway to try others, but add a slightly longer delay
-           await new Promise(r => setTimeout(r, 200));
-           continue; 
-        }
-        const created = await res.json();
-        idMapping.set(t.id, created.id);
-        
-        setImportProgress({ current: i + 1, total: tasksToCreate.length, message: `Created task ${i + 1} of ${tasksToCreate.length}` });
-        
-        // Add a delay to avoid rate limiting
-        await new Promise(r => setTimeout(r, 100));
-      }
-
-      // 2. Create Dependencies
       const dependenciesToCreate = parsedData.tasks.flatMap(t => 
         t.dependencies.map(d => ({ from: d.predecessorId, to: t.id, type: d.type }))
       );
 
-      setImportProgress({ current: 0, total: dependenciesToCreate.length, message: 'Creating dependencies...' });
-      
-      for (let i = 0; i < dependenciesToCreate.length; i++) {
-        const d = dependenciesToCreate[i];
-        const newPredId = idMapping.get(d.from);
-        const newSuccId = idMapping.get(d.to);
-        
-        if (newPredId && newSuccId) {
-          const depTypeMap: Record<number, string> = { 1: 'FS', 2: 'FF', 3: 'SS', 4: 'SF' };
-          
-          await fetch(`/api/v1/projects/${targetProjectId}/dependencies`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              predecessorTaskId: newPredId,
-              successorTaskId: newSuccId,
-              type: depTypeMap[d.type] || 'FS'
-            })
-          });
-          // Add a delay to avoid rate limiting
-          await new Promise(r => setTimeout(r, 50));
-        }
-        setImportProgress({ current: i + 1, total: dependenciesToCreate.length, message: `Linked dependency ${i + 1} of ${dependenciesToCreate.length}` });
+      const response = await fetch(`/api/v1/projects/${targetProjectId}/tasks/bulk-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tasks: parsedData.tasks,
+          dependencies: dependenciesToCreate
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to import project tasks');
       }
 
+      setImportProgress({ current: 100, total: 100, message: 'Import completed!' });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setStep('success');
 

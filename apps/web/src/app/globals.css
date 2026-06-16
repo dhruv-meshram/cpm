@@ -54,6 +54,8 @@
    CPM DESIGN TOKENS — CSS Custom Properties
    ============================================================ */
 :root {
+  --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-geist-mono: "Geist Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   /* ── Shadcn base (kept for compatibility) ─────────────── */
   --background: #f6f5f4;
   --foreground: #000000;

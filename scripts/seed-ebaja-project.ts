@@ -90,19 +90,22 @@ async function run() {
      idMap.set(t.id, randomUUID());
   }
 
-  const tasksToInsert = transformed.tasks.map(t => ({
-    id: idMap.get(t.id)!,
-    projectId: project.id,
-    title: t.name,
-    description: '',
-    duration: t.durationHours > 0 ? Math.round(t.durationHours / 24) : 1, // Store as days
-    estimatedDays: t.durationHours > 0 ? Math.round(t.durationHours / 24) : 1,
-    startDate: t.start ? new Date(t.start.endsWith('Z') || t.start.includes('+') ? t.start : t.start + 'Z') : null,
-    endDate: t.finish ? new Date(t.finish.endsWith('Z') || t.finish.includes('+') ? t.finish : t.finish + 'Z') : null,
-    state: 'TODO' as any,
-    isDraft: false,
-    parentTaskId: t.parentId ? idMap.get(t.parentId)! : null
-  }));
+  const tasksToInsert = transformed.tasks.map(t => {
+    const calculatedDuration = t.isMilestone ? 0 : Math.max(1, Math.round(t.durationHours / 24));
+    return {
+      id: idMap.get(t.id)!,
+      projectId: project.id,
+      title: t.name,
+      description: '',
+      duration: calculatedDuration,
+      estimatedDays: calculatedDuration,
+      startDate: t.start ? new Date(t.start.endsWith('Z') || t.start.includes('+') ? t.start : t.start + 'Z') : null,
+      endDate: t.finish ? new Date(t.finish.endsWith('Z') || t.finish.includes('+') ? t.finish : t.finish + 'Z') : null,
+      state: 'TODO' as any,
+      isDraft: false,
+      parentTaskId: t.parentId ? idMap.get(t.parentId)! : null
+    };
+  });
 
   await prisma.task.createMany({ data: tasksToInsert });
 
