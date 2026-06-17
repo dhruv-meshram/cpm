@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/web"
+  ],
   "scripts": {
     "dev": "npm run dev --prefix apps/web",
     "db:generate": "prisma generate",
