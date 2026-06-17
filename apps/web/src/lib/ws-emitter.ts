@@ -2,9 +2,13 @@ export async function emitToProjectRoom(projectId: string, event: string, payloa
   try {
     const room = `project:${projectId}`;
     // Send event to the internal WebSocket HTTP bridge
-    await fetch('http://localhost:3001/emit', {
+    const wsUrl = process.env.INTERNAL_WS_SERVER_URL || 'http://localhost:3001';
+    await fetch(`${wsUrl}/emit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.EMIT_SECRET || 'dev-emit-secret'}`
+      },
       body: JSON.stringify({ room, event, payload })
     });
   } catch (error) {

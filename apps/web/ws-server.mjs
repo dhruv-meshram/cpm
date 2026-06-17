@@ -5,13 +5,30 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
+const EMIT_SECRET = process.env.EMIT_SECRET || 'dev-emit-secret';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 const key = new TextEncoder().encode(JWT_SECRET);
 
 const server = createServer(async (req, res) => {
-  // Internal endpoint for Next.js to push events to the WS server
+  // CORS Headers for HTTP bridge
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    return res.end();
+  }
+
   if (req.method === 'POST' && req.url === '/emit') {
+    const authHeader = req.headers.authorization;
+    if (authHeader !== `Bearer ${EMIT_SECRET}`) {
+      res.writeHead(401);
+      return res.end('Unauthorized');
+    }
+
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', () => {

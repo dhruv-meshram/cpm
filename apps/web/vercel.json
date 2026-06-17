@@ -1,0 +1,4 @@
+{
+  "buildCommand": "cd ../.. && npx prisma generate && cd apps/web && next build",
+  "installCommand": "npm install"
+}

@@ -35,10 +35,10 @@ export function WebSocketListener() {
 
         if (!active) return;
 
-        // Determine protocol
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // WebSocket server runs on port 3001
-        const wsUrl = `${protocol}//${window.location.hostname}:3001?token=${encodeURIComponent(token)}`;
+        const defaultWs = `${protocol}//${window.location.hostname}:3001`;
+        const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL || defaultWs;
+        const wsUrl = `${baseWsUrl}?token=${encodeURIComponent(token)}`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
