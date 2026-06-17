@@ -36,7 +36,7 @@ export function WebSocketListener() {
         if (!active) return;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const defaultWs = `${protocol}//${window.location.hostname}:3001`;
+        const defaultWs = `${protocol}//${window.location.host}`;
         const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL || defaultWs;
         const wsUrl = `${baseWsUrl}?token=${encodeURIComponent(token)}`;
 

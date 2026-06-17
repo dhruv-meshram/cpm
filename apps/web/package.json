@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev\" \"node ws-server.mjs\"",
+    "dev": "concurrently \"next dev --webpack\" \"node ws-server.mjs\"",
     "build": "next build",
     "start": "concurrently \"next start\" \"node ws-server.mjs\"",
     "lint": "eslint"
