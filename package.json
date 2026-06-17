@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev": "npm run dev --prefix apps/web",
+    "build": "npx prisma generate && npx prisma migrate deploy && cmake -S . -B build && cmake --build build --target cpm_cli && npm run build --prefix apps/web",
+    "start": "node apps/web/server.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
