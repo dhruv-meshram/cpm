@@ -35,12 +35,12 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.9.0",
+    "@prisma/client": "^6.4.1",
     "fast-xml-parser": "^5.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
-    "prisma": "^6.9.0",
+    "prisma": "^6.4.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
