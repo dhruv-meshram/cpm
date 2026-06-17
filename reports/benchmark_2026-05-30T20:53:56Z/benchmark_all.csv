@@ -1,4 +1,0 @@
-scenario_id,node_count,edge_count,build_us,validate_us,topo_us,fwd_us,bwd_us,float_us,total_us,memory_mb,paths
-A1,50,8,205,63,47,26,33,16,122,0.05,1
-A2,500,974,15130,1486,1046,6987,7224,482,15739,0.49,1
-B1,1000,999,2533,2012,1740,10112,10325,770,22947,0.98,1
