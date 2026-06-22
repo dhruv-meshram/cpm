@@ -44,7 +44,7 @@ cd apps/web
 npm run dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000).
+The application will be available at [http://localhost:3000](http://localhost://localhost:3000).
 
 ## Architecture Stack
 - **Frontend**: Next.js 16 (Turbopack), TailwindCSS, Shadcn/ui
@@ -52,3 +52,26 @@ The application will be available at [http://localhost:3000](http://localhost:30
 - **Authentication**: JWT via Edge-Compatible `jose`
 - **Database**: PostgreSQL with Prisma ORM
 - **Engine**: C++ Mathematical Engine for Critical Path Calculation
+
+## Benchmarking Suite
+
+The project includes a comprehensive benchmarking suite split into three core categories:
+1. **CPM Engine Benchmarks (C++)**: Measures topological sort, forward/backward pass calculations, slack calculations, scalability, and memory consumption.
+2. **Database Benchmarks (C++)**: Direct PostgreSQL performance testing using native C++ `libpq`, measuring project creation, task/dependency insertions, constraint validation overhead, query performance, and indexing effectiveness.
+3. **API & Concurrency Load Tests (TS & Locust)**: Simulates concurrent users performing read/write operations against the API endpoints.
+
+### Quick Start: Run All Benchmarks
+To run the entire benchmarking suite sequentially (compiling C++ binaries, executing engine & database benchmarks, and hitting live API endpoints/Locust load tests if the server is active):
+
+```bash
+# 1. Start the Next.js server with rate limiting disabled (for API & Locust benchmarks)
+DISABLE_RATE_LIMIT=true npm run dev
+
+# 2. Run the unified benchmarks runner (in another terminal)
+npm run benchmarks:all
+```
+
+For specific details, parameter configuration, and output details:
+- For C++ Engine: refer to [benchmarks/README.md](file:///home/dhruv/Documents/cpm/benchmarks/README.md)
+- For Database: refer to [benchmarks/db/README.md](file:///home/dhruv/Documents/cpm/benchmarks/db/README.md)
+- For API: refer to [benchmarks/api/README.md](file:///home/dhruv/Documents/cpm/benchmarks/api/README.md)

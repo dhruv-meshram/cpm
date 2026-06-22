@@ -215,6 +215,10 @@ target_include_directories(cpm_cli PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/engine/include
 )
 
+# Benchmarks
+add_subdirectory(benchmarks/cpm_engine)
+add_subdirectory(benchmarks/db)
+
 # ============================================================================
 # Build Summary
 # ============================================================================

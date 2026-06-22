@@ -9,11 +9,16 @@ const key = new TextEncoder().encode(JWT_SECRET);
 export async function proxy(req: NextRequest) {
   // Apply rate limiting for API routes
   if (req.nextUrl.pathname.startsWith('/api/')) {
-    const ip = req.headers.get('x-forwarded-for') || 'anonymous';
-    // Max 100 requests per minute per IP
-    const allowed = checkRateLimit(ip, { maxRequests: 100, windowMs: 60 * 1000 });
-    if (!allowed) {
-      return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+    const bypassHeader = req.headers.get('x-bypass-rate-limit') === 'true';
+    const bypassEnv = process.env.DISABLE_RATE_LIMIT === 'true';
+
+    if (!bypassHeader && !bypassEnv) {
+      const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+      // Max 100 requests per minute per IP
+      const allowed = checkRateLimit(ip, { maxRequests: 100, windowMs: 60 * 1000 });
+      if (!allowed) {
+        return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+      }
     }
   }
 

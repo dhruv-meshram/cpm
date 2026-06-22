@@ -1,6 +1,8 @@
 #include "schedule_calculator.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
+
 
 namespace cpm {
 
@@ -111,6 +113,13 @@ DateTime ScheduleCalculator::forwardPass(ProjectGraph& graph,
         task.early_finish = daysToDateTime(project_start, task.duration);
     }
     
+    // Build a lookup index for dependencies to avoid linear scans: O(E) time & space
+    std::unordered_map<std::string, std::unordered_map<std::string, const Dependency*>> dep_lookup;
+    dep_lookup.reserve(graph.tasks.size());
+    for (const auto& dep : graph.dependencies) {
+        dep_lookup[dep.predecessor_id][dep.successor_id] = &dep;
+    }
+    
     // Process tasks in topological order
     for (const auto& task_id : topo_order) {
         Task& task = graph.tasks.at(task_id);
@@ -129,8 +138,11 @@ DateTime ScheduleCalculator::forwardPass(ProjectGraph& graph,
             
             for (const auto& pred_id : graph.predecessors.at(task_id)) {
                 // Find the dependency between pred_id and task_id
-                for (const auto& dep : graph.dependencies) {
-                    if (dep.predecessor_id == pred_id && dep.successor_id == task_id) {
+                auto pred_it = dep_lookup.find(pred_id);
+                if (pred_it != dep_lookup.end()) {
+                    auto succ_it = pred_it->second.find(task_id);
+                    if (succ_it != pred_it->second.end()) {
+                        const Dependency& dep = *(succ_it->second);
                         DateTime pred_ef_with_lag = getSuccessorEarliestStart(graph, 
                                                                               graph.tasks.at(pred_id), 
                                                                               dep);
@@ -140,7 +152,6 @@ DateTime ScheduleCalculator::forwardPass(ProjectGraph& graph,
                         } else {
                             max_pred_ef = std::max(max_pred_ef, pred_ef_with_lag);
                         }
-                        break;
                     }
                 }
             }
@@ -169,6 +180,13 @@ void ScheduleCalculator::backwardPass(ProjectGraph& graph,
     // Process tasks in REVERSE topological order
     std::vector<std::string> reverse_order(topo_order.rbegin(), topo_order.rend());
     
+    // Build a lookup index for dependencies to avoid linear scans: O(E) time & space
+    std::unordered_map<std::string, std::unordered_map<std::string, const Dependency*>> dep_lookup;
+    dep_lookup.reserve(graph.tasks.size());
+    for (const auto& dep : graph.dependencies) {
+        dep_lookup[dep.predecessor_id][dep.successor_id] = &dep;
+    }
+    
     for (const auto& task_id : reverse_order) {
         Task& task = graph.tasks.at(task_id);
         
@@ -186,8 +204,11 @@ void ScheduleCalculator::backwardPass(ProjectGraph& graph,
             
             for (const auto& succ_id : graph.successors.at(task_id)) {
                 // Find the dependency between task_id and succ_id
-                for (const auto& dep : graph.dependencies) {
-                    if (dep.predecessor_id == task_id && dep.successor_id == succ_id) {
+                auto pred_it = dep_lookup.find(task_id);
+                if (pred_it != dep_lookup.end()) {
+                    auto succ_it = pred_it->second.find(succ_id);
+                    if (succ_it != pred_it->second.end()) {
+                        const Dependency& dep = *(succ_it->second);
                         DateTime succ_ls_minus_lag = getPredecessorLatestFinish(graph, 
                                                                                  graph.tasks.at(succ_id), 
                                                                                  dep);
@@ -197,7 +218,6 @@ void ScheduleCalculator::backwardPass(ProjectGraph& graph,
                         } else {
                             min_succ_ls = std::min(min_succ_ls, succ_ls_minus_lag);
                         }
-                        break;
                     }
                 }
             }

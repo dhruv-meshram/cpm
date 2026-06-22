@@ -1,0 +1,7 @@
+# Ignore generated benchmark CSV files
+**/results/*.csv
+**/results/
+
+# Ignore compiled local test executables
+*.o
+*.a

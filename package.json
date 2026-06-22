@@ -31,7 +31,10 @@
     "db:bench:all": "tsx scripts/generate_master_benchmark_report.ts",
     "db:test:volume:small": "tsx scripts/db_volume_benchmark.ts small",
     "db:test:volume:medium": "tsx scripts/db_volume_benchmark.ts medium",
-    "db:test:volume:large": "tsx scripts/db_volume_benchmark.ts large"
+    "db:test:volume:large": "tsx scripts/db_volume_benchmark.ts large",
+    "api:bench:run": "tsx benchmarks/api/benchmark_main.ts",
+    "api:bench:sweep": "tsx benchmarks/api/benchmark_main.ts --concurrency-sweep",
+    "benchmarks:all": "tsx benchmarks/run_all_benchmarks.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
