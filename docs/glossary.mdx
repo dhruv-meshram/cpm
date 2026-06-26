@@ -1,0 +1,76 @@
+---
+title: Glossary of Terms
+sidebar_position: 15
+description: Vocabulary terms, scheduling formulas, and algorithmic keywords.
+---
+
+# Glossary of Terms
+
+This document provides definitions for domain concepts, architectural terms, and algorithms used in the CPM Project Management platform.
+
+---
+
+## 1. Domain & Scheduling Concepts
+
+### Critical Path Method (CPM)
+A project modeling technique used to calculate schedule flexibility and identify the sequence of dependent tasks that determines the minimum overall duration of a project.
+
+### Critical Path
+The longest continuous sequence of dependent tasks in a project network. Any delay to a task on the critical path directly delays the project completion date. Tasks on the critical path have a **Total Float** equal to zero.
+
+### Earliest Start (ES)
+The earliest possible date or time a task can begin, calculated during the **Forward Pass** based on the finish times of all predecessor tasks.
+
+### Earliest Finish (EF)
+The earliest possible date a task can be completed:
+`EF = ES + duration`
+
+### Latest Finish (LF)
+The latest date a task can complete without delaying the project completion date, calculated during the **Backward Pass** based on successor start times.
+
+### Latest Start (LS)
+The latest date a task can begin without delaying the project completion date:
+`LS = LF - duration`
+
+### Total Float (TF) / Slack
+The amount of time a task can slide past its earliest start date without delaying the project completion date:
+`TF = LS - ES = LF - EF`
+
+### Free Float (FF)
+The amount of time a task can slide past its earliest start date without delaying the earliest start of any successor tasks:
+`FF = min(ES_j) - EF` (for all successors `j` of the task)
+
+### Lag
+An offset delay required between a predecessor task and a successor task (e.g. waiting 3 days for concrete to dry before building walls). Can be configured as positive (delay) or negative (lead).
+
+---
+
+## 2. Dependency Types
+
+### Finish-to-Start (FS)
+The successor task cannot start until the predecessor task completes. This is the default dependency type.
+
+### Start-to-Start (SS)
+The successor task cannot start until the predecessor task has started.
+
+### Finish-to-Finish (FF)
+The successor task cannot finish until the predecessor task has finished.
+
+### Start-to-Finish (SF)
+The successor task cannot finish until the predecessor task has started.
+
+---
+
+## 3. Algorithmic & System Terms
+
+### Directed Acyclic Graph (DAG)
+A directed graph containing no cycles. In this platform, tasks represent vertices and dependencies represent directed edges. The network must be a DAG so that scheduling coordinates can be computed.
+
+### Kahn's Algorithm
+A classical topological sorting algorithm. It works by finding nodes with an in-degree of `0`, adding them to a sorted queue, removing their outgoing edges, and repeating. Used in the CPM engine to verify that project networks contain no cycles.
+
+### Child Process Spawning
+An Inter-Process Communication (IPC) pattern where a parent program (Node.js) starts a child program (C++ `cpm_cli`), writes data to its `stdin` stream, and parses results from its `stdout` stream.
+
+### Cuid
+Collision-resistant Unique Identifiers used as primary keys in the database (e.g. `c1a2b3c4d5e6`).

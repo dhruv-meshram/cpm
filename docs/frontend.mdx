@@ -1,0 +1,113 @@
+---
+title: Frontend Application
+sidebar_position: 5
+description: Client components, React Flow DAGs, and Gantt charts.
+---
+
+# Frontend Application & UI Architecture
+
+This document details the frontend architecture of the CPM platform, outlining page routes, client-side state, custom scheduling widgets, and layout design systems.
+
+---
+
+## 1. Page Routes & Folder Structure
+
+The frontend is a Next.js App Router application located in `apps/web/src`. Routing is split into **Public** and **Authenticated** route groups.
+
+### A. Public Routes (`(public)/`)
+- `/` — Marketing Landing Page. Contains features lists, "How It Works" timeline, and an interactive multi-slide AI chat simulator.
+- `/login` — User Sign-in card (Notion-styled card layout).
+- `/signup` — Account Registration card.
+
+### B. Authenticated Routes (`(app)/`)
+- `/dashboard` — General user workspace displaying recent projects, task completions checklist, upcoming milestones, and personal workload metrics.
+- `/notifications` — Dedicated mailbox listing assignment notices, schedule changes, and approvals requests.
+- `/settings` — User configuration page with toggle settings for AI Auto-Pilot/Scheduling modes and automation logs.
+- `/projects` — List of all workspaces projects.
+- `/projects/[projectId]` — Dynamic project view, using a common tabbed layout hosting six sub-views:
+  - `../overview` — Main project KPI deck showing task distributions, active member counts, and project health.
+  - `../tasks` — Searchable grid of project tasks with CRUD modals, bulk deletion, and bulk department assignment.
+  - `../gantt` — Interactive time-bar timeline view.
+  - `../graph` — React Flow-powered directed acyclic dependency network map.
+  - `../announcements` — Pinned broadcast messages for project members.
+  - `../manage` — User management pane for setting custom roles, invite codes, and updating project metadata.
+
+---
+
+## 2. Component Hierarchy & Layouts
+
+```mermaid
+graph TD
+    RootLayout[Root Layout - layout.tsx] --> AppLayout[App Layout - (app)/layout.tsx]
+    AppLayout --> Header[Global Header]
+    AppLayout --> Sidebar[Global Workspace Sidebar]
+    AppLayout --> SubPage[Page Content Wrapper]
+    
+    subgraph Project Dynamic View
+        SubPage --> ProjectLayout[Project Layout - projects/[id]/layout.tsx]
+        ProjectLayout --> ProjectSubnav[Tabbed Subnavigation Overview/Tasks/Gantt/Graph]
+        ProjectLayout --> GraphView[Graph View - graph/page.tsx]
+        ProjectLayout --> GanttView[Gantt View - gantt/page.tsx]
+        ProjectLayout --> TasksView[Tasks List View - tasks/page.tsx]
+        
+        GraphView --> ReactFlowContainer[React Flow Graph Canvas]
+        ReactFlowContainer --> NodeCustom[Custom Task Nodes]
+        ReactFlowContainer --> Tooltip[Task Info Hover Tooltip]
+        ReactFlowContainer --> ControlsPanel[Legend & Filter Panel]
+        
+        GanttView --> LeftPanel[Task Name & Stats List]
+        GanttView --> RightTimeline[Grid scroll area: Day/Week/Month cells]
+        RightTimeline --> TaskBar[Color-coded state/delay bars]
+        RightTimeline --> MilestoneDiamond[Milestone indicators]
+    end
+```
+
+---
+
+## 3. Core Interactive Views
+
+### A. Directed Acyclic Graph (React Flow)
+The dependency graph renders task relationships in a Left-to-Right layout using `@xyflow/react`.
+- **Dagre Layout Engine**: Client-side layout coordinates are calculated dynamically using the `dagre` library. It initializes an in-memory graph, sets node bounding boxes to `172x56px` with direction `LR`, executes `dagre.layout()`, and assigns coordinates back to React Flow nodes.
+- **Node Styles**: Nodes are color-coded based on their state (Todo: slate, In-Progress: yellow, Review: orange, Done: green, Overdue: red).
+- **Critical Path Highlighting**: Tasks that are part of the critical path (where slack is exactly 0) are highlighted with a thick red border and a glowing shadow ring. Dependency edges are colored thick red and animated if they link two critical tasks.
+- **Tooltip**: Hovering over a node displays a floating panel containing description text, task durations, and computed float times.
+
+### B. Gantt Timeline View
+The Gantt page provides a custom grid scheduler without bulky calendar dependencies:
+- **Scales**: Supports filtering by Days (48px columns), Weeks (12px per day), or Months (4px per day).
+- **Synchronized Scrolling**: Splits the view into a sticky left task metadata table and a horizontal right scrolling timeline canvas, synchronized via CSS layouts.
+- **Visual Markers**: Renders a vertical line marking today's date, shades weekends differently, and renders milestone tasks (0-day duration) as rotated black diamonds instead of wide rectangular bars.
+- **Progress Tracking**: Sub-bars are drawn inside task bars displaying task completion percentages based on their status values (Done = 100%, In-Progress = 65%, Review = 90%).
+
+---
+
+## 4. UI Design System Tokens & Styling
+
+The platform uses a warm, Notion-inspired aesthetic configured in Tailwind CSS v4 and `globals.css`:
+- **Canvas Backdrop**: Clean off-white paper canvas background (`#f6f5f4`) to avoid screen fatigue.
+- **Action Elements**: Standard black headlines with Notion Inter typography, utilizing tight tracking (`letter-spacing`) for large weights. A single deep blue (`#0075de`) is used for primary action links and focus states.
+- **Stickers & Badges**: Small decorative panels use a playful sticker palette (sky-blue, light purple, pink, teal, green, orange) to classify modules without cluttering the primary chrome.
+- **Elevation**: Tightly configured border-radii (`radius-md: 8px` for buttons, `radius-lg: 12px` for cards) and a 1px soft hairline divider (`#e6e6e6`) instead of heavy, dark drop-shadows.
+
+---
+
+## 5. Forms & Input Validation
+
+Data inputs are validated client-side before sending payloads to backend routers:
+- **Libraries**: `react-hook-form` manages form bindings and validation states, while `zod` defines data schemas.
+- **Task Forms**: Validate that task durations are positive integers, titles are non-empty, and start/end dates are chronologically logical.
+- **Project Forms**: Validate that identifier slugs contain only alphanumeric characters or hyphens (e.g. `CPM-PROJ-A`).
+
+---
+
+## 6. Client Data Fetching & Caching
+
+Asynchronous operations are managed by TanStack React Query:
+- **Cache Invalidation**: Mutations (like creating a task, adding a dependency, or triggering a CPM run) invalidate query caches. This forces pages to refetch fresh datasets automatically.
+- **Query Keys**:
+  - `['tasks', projectId]` — Task list for a project.
+  - `['dependencies', projectId]` — Project dependencies.
+  - `['cpmResults', projectId]` — Latest snapshot computed by the C++ engine.
+  - `['project', projectId]` — Project detail and metadata.
+  - `['departments', projectId]` — Departments list.

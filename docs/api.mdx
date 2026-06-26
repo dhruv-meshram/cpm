@@ -1,0 +1,114 @@
+---
+title: API Reference
+sidebar_position: 10
+description: REST API endpoint schemas and payload definitions.
+---
+
+# API Reference Guide
+
+This document lists all the REST API endpoints provided by the CPM platform backend, including methods, URLs, query parameters, payloads, and authorization requirements.
+
+---
+
+## 1. Authentication Endpoints
+
+| Method | Endpoint | Description | Auth Level | Payload (JSON) | Response (JSON) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/v1/auth/signup` | Register a new user | Public | `{name, email, password}` | `{user: {id, name, email}}` |
+| **POST** | `/api/v1/auth/login` | Login user, set session cookie | Public | `{email, password}` | `{accessToken, refreshToken, user}` |
+| **POST** | `/api/v1/auth/logout` | Logout user, clear cookies | Public | None | `{status: "ok"}` |
+| **POST** | `/api/v1/auth/token` | Get current access token | Authenticated | None | `{accessToken}` |
+| **POST** | `/api/v1/auth/refresh`| Rotate session refresh tokens | Authenticated | None | `{accessToken, refreshToken}` |
+
+---
+
+## 2. User Profile Endpoints
+
+| Method | Endpoint | Description | Auth Level | Payload (JSON) | Response (JSON) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/users/me` | Fetch active profile | Session Cookie | None | `{id, name, email}` |
+| **PUT** | `/api/v1/users/me` | Update name or avatar | Session Cookie | `{name, avatar}` | `{id, name, email, avatar}` |
+| **PUT** | `/api/v1/users/me/password` | Change user password | Session Cookie | `{oldPassword, newPassword}` | `{status: "success"}` |
+
+---
+
+## 3. Project Management Endpoints
+
+| Method | Endpoint | Description | Auth Level | Payload (JSON) | Response (JSON) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/projects` | List all user projects | Session Cookie | None | `[{id, name, identifier, status}]` |
+| **POST** | `/api/v1/projects` | Create a new project | Workspace Admin | `{name, identifier, description}`| `{id, name, identifier}` |
+| **GET** | `/api/v1/projects/[projectId]` | Fetch project detail | Project Member | None | `{id, name, identifier, tasks: []}`|
+| **PUT** | `/api/v1/projects/[projectId]` | Update project metadata | Project Admin | `{name, status, health}` | `{id, name, status, health}` |
+| **DELETE**| `/api/v1/projects/[projectId]`| Delete a project (cascade) | Project Owner | None | `{status: "deleted"}` |
+| **GET** | `/api/v1/projects/[projectId]/overview` | Fetch cached dashboard KPIs | Project Member | None | `{project: {}, cpmInsights: {}, schedule: {}}` |
+
+---
+
+## 4. Scheduling Tasks & Dependencies
+
+| Method | Endpoint | Description | Auth Level | Payload (JSON) | Response (JSON) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/projects/[projectId]/tasks` | List all project tasks | Project Member | None | `[{id, title, duration, state}]` |
+| **POST** | `/api/v1/projects/[projectId]/tasks` | Create a new task | Project Member | `{title, duration, state}` | `{id, title, duration}` |
+| **PUT** | `/api/v1/projects/[projectId]/tasks/[taskId]` | Update task details | Project Member | `{title, duration, state, startDate, endDate}` | `{id, title, duration, state}` |
+| **DELETE**| `/api/v1/projects/[projectId]/tasks/[taskId]` | Soft-delete a task | Project Member | None | `{status: "deleted"}` |
+| **POST** | `/api/v1/projects/[projectId]/tasks/bulk-import` | Bulk XML parsing import | Project Member | `{xmlContent}` | `{importedTasksCount: 12}` |
+| **GET** | `/api/v1/projects/[projectId]/dependencies` | List project dependencies | Project Member | None | `[{id, predecessorTaskId, successorTaskId, type}]` |
+| **POST** | `/api/v1/projects/[projectId]/dependencies` | Create dependency link | Project Member | `{predecessorTaskId, successorTaskId, type, lag}` | `{id, predecessorTaskId, successorTaskId}` |
+| **DELETE**| `/api/v1/projects/[projectId]/dependencies/[dependencyId]`| Delete dependency link | Project Member | None | `{status: "deleted"}` |
+
+---
+
+## 5. CPM Scheduling Engine Controllers
+
+### A. Run CPM Engine
+- **Endpoint**: `/api/v1/projects/[projectId]/cpm/run`
+- **Method**: `POST`
+- **Role**: Project Member (Write Access)
+- **Description**: Triggers topological sorting and dates computation. If the C++ process is compiled and available, it spawns `cpm_cli`. Otherwise, it falls back to the in-memory JavaScript solver.
+- **Request Payload**: None
+- **Response Payloads**:
+  - *Status: 202 Accepted*
+    ```json
+    {
+      "runId": "c4b4a11f-db9f-4318-8f81-a67bde56a1b2",
+      "status": "processing"
+    }
+    ```
+  - *Status: 400 Bad Request (Validation failure / Cycles)*
+    ```json
+    {
+      "error": "CPM Engine Validation Failed: Cycle detected: task A -> task B -> task A"
+    }
+    ```
+
+### B. Fetch CPM Calculation Results
+- **Endpoint**: `/api/v1/projects/[projectId]/cpm/results`
+- **Method**: `GET`
+- **Role**: Project Member (Read Access)
+- **Description**: Returns the latest calculated snapshot results containing task dates, floats, and the critical path.
+- **Response Payload**:
+  - *Status: 200 OK*
+    ```json
+    {
+      "id": "c4b4a11f-db9f-4318-8f81-a67bde56a1b2",
+      "projectDuration": 24.5,
+      "criticalPath": ["task-1", "task-3", "task-4"],
+      "details": {
+        "status": "success",
+        "taskDetails": {
+          "task-1": { "es": 0.0, "ef": 5.0, "ls": 0.0, "lf": 5.0, "slack": 0.0, "isCritical": true },
+          "task-2": { "es": 5.0, "ef": 12.0, "ls": 8.0, "lf": 15.0, "slack": 3.0, "isCritical": false },
+          "task-3": { "es": 5.0, "ef": 15.0, "ls": 5.0, "lf": 15.0, "slack": 0.0, "isCritical": true },
+          "task-4": { "es": 15.0, "ef": 24.5, "ls": 15.0, "lf": 24.5, "slack": 0.0, "isCritical": true }
+        }
+      }
+    }
+    ```
+  - *Status: 404 Not Found* (if no scheduling run has been executed yet)
+    ```json
+    {
+      "error": "No CPM snapshot found for this project"
+    }
+    ```

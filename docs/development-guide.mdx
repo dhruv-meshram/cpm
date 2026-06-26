@@ -1,0 +1,135 @@
+---
+title: Development Guide
+sidebar_position: 14
+description: Local environment setups, testing scripts, and performance sweeps.
+---
+
+# Local Development & Operation Guide
+
+This document provides a guide to setting up, developing, testing, and benchmarking the CPM platform on a local machine.
+
+---
+
+## 1. Prerequisites
+
+Before installing, ensure the following software is installed on the system:
+- **Node.js**: version `20.0.0` or higher.
+- **npm**: package manager (typically bundled with Node).
+- **C++ Compiler**: `g++` (v9+) or `clang` supporting C++17.
+- **CMake**: version `3.10` or higher (for C++ compilation).
+- **PostgreSQL**: database server (v15+).
+- **Redis**: cache server (optional, falling back to local memory if absent).
+
+---
+
+## 2. Installation & Setup
+
+Follow these steps to initialize the development environment:
+
+### Step 1: Clone the repository and install dependencies
+```bash
+# Install root workspace and subproject dependencies
+npm install
+```
+
+### Step 2: Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cpm_dev?schema=public"
+JWT_SECRET="super-secret-key-for-dev-runs"
+EMIT_SECRET="dev-emit-secret"
+PORT=3000
+INTERNAL_WS_SERVER_URL="http://localhost:3001"
+```
+
+### Step 3: Run Database Migrations and Seed
+Ensure your local PostgreSQL server is running, then deploy the schema:
+```bash
+# Apply migrations to local PostgreSQL database
+npm run db:migrate
+
+# Seed database with sample workspaces, projects, and tasks
+npm run db:seed
+```
+
+### Step 4: Compile the C++ Engine & Web Build
+Configure and compile the C++ CLI executable:
+```bash
+# Run unified build scripts
+npm run build
+```
+This generates the binary executable in `/build/cpm_cli`.
+
+---
+
+## 3. Running the Application Locally
+
+Start the development servers (Next.js server on port 3000, and WebSocket server on port 3001):
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in the browser to view the application.
+
+---
+
+## 4. Testing Protocols
+
+The repository includes validation tests to ensure database integrity and scheduling logic correctness.
+
+### A. Database Integrity Tests
+Verify schema constraints, validations, transactions, and CRUD functionality:
+```bash
+# Run validations and DAG checks
+npm run db:test:validation
+
+# Run constraint validation tests
+npm run db:test:constraints
+
+# Run CRUD operations tests
+npm run db:test:crud
+
+# Run transaction isolation tests
+npm run db:test:transaction
+```
+
+### B. C++ Engine Tests
+Native C++ unit tests verify scheduling logic calculations and edge cases:
+```bash
+# Move to build folder and run tests
+cd build
+ctest
+```
+
+---
+
+## 5. Benchmarking & Volume Audits
+
+Stress-testing utilities are available in `scripts/` to measure database performance under heavy loads:
+
+### A. Volume Benchmarks
+Verify query performance under varying task graph sizes:
+```bash
+# Small Test (100 tasks)
+npm run db:test:volume:small
+
+# Medium Test (1,000 tasks)
+npm run db:test:volume:medium
+
+# Large Test (5,000 tasks)
+npm run db:test:volume:large
+```
+
+### B. Graph Shape Latency Matrix
+Generate and visualize latency sweeps comparing performance on different graph shapes (chains, dense, tree):
+```bash
+# Run latency tests and generate visual charts
+npm run db:bench:matrix:report
+```
+This writes performance graphs and reports to the `database/benchmarks/` directory.
+
+### C. Run All Benchmarks
+To run the full suite of API and database benchmarks:
+```bash
+npm run benchmarks:all
+```

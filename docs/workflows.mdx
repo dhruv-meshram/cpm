@@ -1,0 +1,128 @@
+---
+title: System Workflows
+sidebar_position: 9
+description: Authentication, onboarding checklist, task creation, and sync workflows.
+---
+
+# Key Platform Workflows & Sequence Maps
+
+This document details the core workflows of the CPM platform, mapping client interactions, database queries, background calculations, and real-time events.
+
+---
+
+## 1. User Session & Authentication Workflow
+
+This workflow handles user authentication, session creation using HTTP-only cookies, and session verification using React cache deduplication.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Page as Login Page / Input
+    participant API as Next.js API (auth/login)
+    participant DB as PostgreSQL DB
+    participant Jose as jose (JWT Library)
+    participant Cookies as Next.js Cookie Store
+
+    User->>Page: Enters Email and Password
+    Page->>API: POST /api/v1/auth/login
+    API->>DB: Find User by Email
+    DB-->>API: User Entity (including passwordHash)
+    API->>API: Verify Password Hash (argon2)
+    
+    alt Credentials Invalid
+        API-->>Page: Return 401 Unauthorized
+        Page-->>User: Show "Invalid credentials"
+    else Credentials Valid
+        API->>Jose: Sign Access Token (userId, email, 7d)
+        Jose-->>API: accessToken String
+        API->>Jose: Sign Refresh Token (userId, 7d)
+        Jose-->>API: refreshToken String
+        API->>Cookies: Set HTTP-Only Secure Cookies (accessToken, refreshToken)
+        API-->>Page: Return 200 OK (User JSON)
+        Page->>Page: Redirect to /dashboard
+    end
+```
+
+---
+
+## 2. Onboarding State Machine & Dashboard Initialization
+
+To reduce user churn, the dashboard implements a progressive initialization state machine based on account age and task counts:
+
+```mermaid
+stateDiagram-v2
+    [*] --> NewUser : Account Age < 1 Day & Tasks = 0
+    NewUser --> OnboardingChecklist : Complete checklist tasks
+    OnboardingChecklist --> ActiveUser : Tasks > 0 & Checklist complete
+    ActiveUser --> EstablishedUser : Account Age > 14 Days & Tasks > 10
+    
+    state OnboardingChecklist {
+        [*] --> SetupWorkspace : 1. Create Workspace
+        SetupWorkspace --> AddTask : 2. Create first task
+        AddTask --> LinkDependency : 3. Create a dependency
+        LinkDependency --> RunCPM : 4. Click "Run CPM"
+    }
+```
+
+The `get_dashboard_data` service sends onboarding metadata (setup checklist completion percentages and current initialization stage) to customize the dashboard view.
+
+---
+
+## 3. Task Creation & Dependency Verification
+
+This workflow handles creating tasks and updating scheduling networks, verifying that changes do not introduce circular dependencies.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor PM as Project Manager
+    participant UI as Tasks View Grid
+    participant API as Next.js API (tasks/route.ts)
+    participant DB as PostgreSQL DB
+    participant Cache as Redis Cache
+    participant WS as WebSocket Server
+
+    PM->>UI: Fills Task Details & Clicks "Create Task"
+    UI->>API: POST /api/v1/projects/[projectId]/tasks (JSON)
+    API->>API: Authenticate Session & Verify Write Roles
+    
+    alt Invariant Violation (e.g. negative duration)
+        API-->>UI: Return 400 Bad Request
+    else Valid Input
+        API->>DB: Insert Task record
+        DB-->>API: Task Entity
+        API->>Cache: Invalidate projectStats & projectHealth caches
+        API->>WS: POST /emit (Room project:id, Event task_created)
+        WS-->>UI: Push WS event: task_created
+        API-->>UI: Return 201 Created (Task JSON)
+        UI->>UI: Add Task to local grid & trigger Queries refetch
+    end
+```
+
+---
+
+## 4. ProjectLibre XML Import Workflow
+
+Users can import existing schedules from ProjectLibre XML files:
+
+```mermaid
+graph TD
+    Upload[User Uploads ProjectLibre XML] --> Parse[Fast-XML-Parser reads XML tags]
+    Parse --> ExtractTasks[Extract tasks: ID, Title, Duration]
+    Parse --> ExtractDeps[Extract Predecessors: From, To, Type, Lag]
+    ExtractTasks --> Validate[Sanity check inputs: unique IDs, positive durations]
+    ExtractDeps --> Validate
+    Validate --> DBWrite[Bulk-write Tasks & Dependencies inside Prisma Transaction]
+    DBWrite --> Invalidate[Invalidate all Project Cache keys]
+    Invalidate --> WSEmit[Broadcast cpm_run_completed event]
+```
+
+---
+
+## 5. Real-Time WebSocket Synchronization
+
+Real-time synchronization ensures that when any project member updates a task, the changes are instantly reflected on all other members' active screens.
+- **Connection**: On page mount, `WebSocketListener.tsx` connects to the WebSocket server using `ws://localhost:3000?token=JWT_TOKEN`.
+- **Subscription**: The listener sends a `join_project` message containing the room identifier: `project:${projectId}`. The server validates project membership and adds the socket connection to the room.
+- **Broadcast**: When a user modifies a task (e.g. changing status to `IN_PROGRESS`), the API route processes the database write and triggers an emit request. The WebSocket server pushes this change to all other clients subscribed to the project room, triggering an automatic cache invalidation and UI refresh.

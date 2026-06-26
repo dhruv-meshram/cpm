@@ -1,0 +1,79 @@
+---
+title: Technology Stack
+sidebar_position: 3
+description: Selected frameworks, tools, and technical justifications.
+---
+
+# Technology Stack & Justifications
+
+This document explains the technical choices made for the CPM platform's implementation.
+
+---
+
+## 1. Tech Stack Overview
+
+| Category | Technology | Selected Version | Role / Purpose |
+| :--- | :--- | :--- | :--- |
+| **Frontend Core** | Next.js (App Router) | `16.2.7` | Page routing, server rendering, layout architecture. |
+| **Frontend View** | React | `19.2.4` | Component-based interactive UI rendering. |
+| **Graph Visualization** | React Flow (`@xyflow/react`) | `12.11.0` | Node-link layout and DAG visualization. |
+| **Styling System** | Tailwind CSS / PostCSS | `v4` | Design system styling utility tokens. |
+| **State Management** | Zustand | `5.0.14` | Client-side routing and UI state stores. |
+| **Data Fetching** | TanStack React Query | `5.101.0` | Async server-state synchronization & caching. |
+| **Backend Core** | Node.js (custom server) | `v20+` / `server.mjs` | REST endpoint routing and asset serving. |
+| **Real-time Server** | WebSocket / `ws` | `8.21.0` | Real-time TCP event broadcast connection. |
+| **Core Scheduling** | C++17 Compiler & CMake | `3.10+` | Native compiled high-speed CPM scheduler. |
+| **ORM / Migration** | Prisma Client | `6.4.1` | Type-safe database queries and migrations. |
+| **Database** | PostgreSQL | `v15+` | Relational persistence storage. |
+| **Caching Store** | Redis (`ioredis`) | `5.11.1` | In-memory cache store (with mock fallback). |
+| **Auth Cryptography** | `jose` & `argon2` | `6.2.3` / `0.44.0` | JWT validation and password hashing. |
+| **Date Arithmetic** | `date-fns` | `4.4.0` | Calendar parsing, formatting, and week checks. |
+
+---
+
+## 2. Frontend Decisions & Justifications
+
+### Next.js 16 (App Router) & React 19
+- **Why**: Next.js App Router provides hybrid rendering where public landing and auth pages are pre-rendered statically on the server, while project dashboards leverage client-side reactivity. React 19's async transitions simplify UI updates.
+
+### React Flow (`@xyflow/react` v12)
+- **Why**: Visualizing a network of dependencies is the core requirement of CPM. React Flow is the leading library for node-graph visualization, supporting panning, zooming, custom node containers, draggable coordinates, and edge markers out of the box.
+
+### Tailwind CSS (v4)
+- **Why**: Tailwind CSS v4 provides a fast, utility-first styling pipeline that integrates with custom CSS variables. It enables the implementation of the Notion-inspired design system tokens (such as soft canvases, rounded buttons, and sticker accent cards) without writing verbose CSS class sheets.
+
+### Zustand (v5)
+- **Why**: Zustand provides an extremely lightweight, hook-based global state manager. It is used here to share transient workspace states (such as active projects, open sidebar panels, and user context) across nested React Flow nodes and layout bars without context-re-render performance penalties.
+
+### TanStack React Query (v5)
+- **Why**: Scheduling calculations frequently invalidate data. React Query manages request deduplication, loading states, error boundaries, and cache invalidation policies, guaranteeing that when the CPM engine updates a project, all UI tables and charts update automatically.
+
+---
+
+## 3. Backend & Native Computation Justifications
+
+### Custom Node.js Web Server (`server.mjs`) & WebSocket Server (`ws-server.mjs`)
+- **Why**: Standard serverless functions struggle to maintain persistent WebSocket connections. Running a unified Node.js server via `server.mjs` enables hosting the REST API, serving Next.js pages, and holding open WebSocket connections on the same port, simplifying containerization.
+
+### Compiled C++17 Engine (`cpm_cli`)
+- **Why**: Scheduling algorithms (Topological Sorts, DFS, Forward/Backward Date passes) are CPU-bound and become highly inefficient in single-threaded JavaScript runtimes when scheduling graphs scale to thousands of nodes. A compiled C++ executable processes heavy graph operations in microseconds and is launched on-demand to safeguard Web server event loops from blocking.
+
+---
+
+## 4. Persistence & Caching Rationale
+
+### PostgreSQL & Prisma ORM
+- **Why**: CPM schedules have highly relational structures (Tasks belong to Projects; Dependencies map tasks to other tasks; Members belong to Departments). PostgreSQL is a robust, ACID-compliant relational database. Prisma provides type-safe query building and auto-generates schema migrations.
+
+### Redis (`ioredis` with Mock Fallback)
+- **Why**: Multiple users viewing a project triggers high-frequency reads. Caching statistics, member lists, and critical paths in Redis avoids hitting the database on every route request. The custom cache wrapper falls back to an in-memory map if Redis goes offline, ensuring the application remains functional in minimalist dev environments.
+
+---
+
+## 5. AI / Automation & Simulation Technologies
+
+### Autopilot Scheduling Modes
+- **Why**: The system supports **Manual**, **Assisted**, **Semi-Automatic**, and **Full Autopilot** modes. This AI-driven proactive orchestration uses task analytics and risk scanning to suggest or automatically make scheduling adjustments (e.g. rescheduling tasks when a deadline-miss is predicted).
+
+### Synthetic Persona & Classifier Engine
+- **Why**: To train and evaluate the deadline-miss prediction model, the repository includes a synthetic dataset generator (`generate_dataset.py` inside scripts) that models user productivity profiles ("College Student," "Freelancer," "Working Professional," "Entrepreneur"). It uses sequential LLM labeling pipelines with fault-tolerant backoff retry schedules to label productivity logs and generate realistic schedules.

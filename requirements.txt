@@ -1,0 +1,8 @@
+# Benchmarking and Visualization Dependencies
+locust>=2.20.0
+pandas>=2.0.0
+matplotlib>=3.5.0
+seaborn>=0.12.0
+ipykernel>=6.0.0
+pyzmq>=25.0.0
+psutil>=5.9.0

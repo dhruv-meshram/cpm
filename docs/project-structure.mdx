@@ -1,0 +1,84 @@
+---
+title: Project Structure
+sidebar_position: 4
+description: Overview of directories and files in the repository.
+---
+
+# Project Directory Structure
+
+This document details the directories, subfolders, and files in the project repository workspace.
+
+---
+
+## 1. Directory Tree Overview
+
+```text
+.
+├── .agents/                    # Agent environment skills configurations
+├── apps/
+│   └── web/                    # Next.js web & WebSocket application
+│       ├── src/
+│       │   ├── app/            # App Router pages and API routes
+│       │   ├── components/     # Client UI component library
+│       │   ├── lib/            # Authentication, database client, & cache layers
+│       │   └── store/          # Zustand global stores
+│       ├── package.json        # Frontend package manifest
+│       ├── server.mjs          # Next.js custom server configuration
+│       └── ws-server.mjs       # Standing WebSocket room server
+├── benchmarks/                 # API load-testing and concurrency sweeps
+├── build/                      # Build workspace for the C++ compiler target
+├── database/                   # Schema documentation and validation scripts
+│   └── tests/                  # Integration tests for validation & constraints
+├── docs/                       # Project documentation directory
+├── engine/                     # C++ Scheduling Engine Source Code
+│   ├── include/                # Header files (.h declarations)
+│   ├── src/                    # Implementation source files (.cpp)
+│   └── tests/                  # Native tests for scheduling logic
+├── prisma/                     # Database migrations, seeding, & schemas
+│   ├── migrations/             # Auto-generated SQL migration history
+│   ├── schema.prisma           # Canonical database schema definitions
+│   └── seed.ts                 # Database seeding configuration
+├── scripts/                    # Database volume tests and benchmark runners
+├── src/                        # Integration code layers
+│   ├── database/               # Database repository interfaces
+│   └── integration/            # C++ engine client bindings (cpmService.ts)
+├── CMakeLists.txt              # CMake configuration script for cpm_cli compilation
+└── package.json                # Monorepo root package manifest
+```
+
+---
+
+## 2. Directory Responsibilities
+
+### A. `.agents/`
+Stores agents-specific instructions, skills (e.g., Supabase templates), and context locks. Used to onboard coding models and agents onto workspace-specific guidelines.
+
+### B. `apps/web/`
+Houses the Next.js web application:
+- **`src/app/`**: Implements folder-based App Routing. Defines page views, layouts, and REST API controller files under `/api/v1/`.
+- **`src/components/`**: Houses reusable UI widgets (sidebar layouts, modals, buttons, input fields) styled with Tailwind CSS tokens.
+- **`src/lib/`**: Houses shared infrastructure utilities, including JWT-signing algorithms (`auth.ts`), the global Prisma client wrapper (`prisma.ts`), and the Redis cache invalidation layer (`project-overview-cache.ts`).
+- **`server.mjs` & `ws-server.mjs`**: Running these custom node configurations starts a unified HTTP web portal and WebSocket event bridge.
+
+### C. `engine/`
+Houses the source code for the performance C++ critical path scheduler:
+- **`include/`**: Defines structures like `Task`, `Dependency`, and `ProjectGraph` in `cpm_types.h`.
+- **`src/`**: Contains core scheduling algorithms, including Cycle validation, Kahn's Topological Sort, Forward Pass, Backward Pass, Float Math, and DFS Path Finding.
+- **`tests/`**: Native C++ test files to verify scheduling math.
+
+### D. `prisma/`
+Manages PostgreSQL schemas and deployments:
+- **`schema.prisma`**: The source of truth for the database layout.
+- **`migrations/`**: Automatically generated SQL scripts representing database migrations.
+- **`seed.ts`**: Runs after initialization to insert project configurations, team members, tasks, and calculated snapshots.
+
+### E. `database/`
+Houses documents detailing the schema design and integration tests inside `/tests` (validations, cascade deletions, constraints, and transactions) to ensure PostgreSQL remains consistent during CRUD operations.
+
+### F. `benchmarks/` & `scripts/`
+Contain tools to stress-test the application. They include scripts to generate synthetic graphs of up to 5,000 tasks and audit query response latencies.
+
+### G. `src/`
+Acts as the integration layer between backend services and database repositories:
+- **`src/database/repositories.ts`**: Implements database queries and writes (Projects, Tasks, Dependencies, Snapshots), separating business logic from raw ORM syntax.
+- **`src/integration/cpmService.ts`**: Maps database models to the JSON structures expected by the C++ engine, spawns the child process, and processes execution outputs.

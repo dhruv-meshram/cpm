@@ -1,0 +1,106 @@
+---
+title: Deployment Guide
+sidebar_position: 13
+description: Compiling C++ target, environment variables, and hosting.
+---
+
+# Compilation, Build, & Deployment Guide
+
+This document describes the compilation process, build pipeline, and deployment configurations required to run the CPM platform in local and production environments.
+
+---
+
+## 1. Unified Build Lifecycle
+
+The application is structured as a monorepo workspace. The build sequence is orchestrated by a single script in the root `package.json`:
+
+```bash
+npm run build
+```
+
+This command initiates a five-stage pipeline:
+
+```mermaid
+graph TD
+    RootBuild[npm run build] --> PrismaGen[1. prisma generate]
+    PrismaGen --> PrismaMigrate[2. prisma migrate deploy]
+    PrismaMigrate --> CMakeConfig[3. cmake -S . -B build]
+    CMakeConfig --> CMakeBuild[4. cmake --build build --target cpm_cli]
+    CMakeBuild --> NextBuild[5. npm run build --prefix apps/web]
+    NextBuild --> Finish[Build Complete]
+```
+
+### Build Stages:
+1. **Prisma Generation**: Compiles the schemas inside `prisma/schema.prisma` and writes type-safe query interfaces to `@prisma/client` in `node_modules`.
+2. **Prisma Deployment**: Applies pending database migrations (`prisma/migrations/*`) to the target PostgreSQL database instance.
+3. **CMake Configuration**: Reads CMake declarations inside `CMakeLists.txt` and prepares the native compilation workspace in `/build`.
+4. **C++ Compilation**: Compiles the source files inside `engine/` into the native target executable `/build/cpm_cli`.
+5. **Next.js Compilation**: Runs the Webpack/Next.js compiler to bundle client-side React routes and bundle server-side API endpoints inside `/apps/web/.next`.
+
+---
+
+## 2. Environment Variables Configuration
+
+The following variables must be configured in the hosting environment (`.env` in development, or set directly in production env containers):
+
+| Variable Name | Required | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `DATABASE_URL` | Yes | None | Connection string for the PostgreSQL database (e.g. `postgresql://user:pass@host:5432/cpmdb`). |
+| `JWT_SECRET` | Yes | `super-secret-key-for-dev` | Cryptographic secret used to sign and verify user JWT sessions. |
+| `EMIT_SECRET` | Yes | `dev-emit-secret` | Security token shared between API routes and the WebSocket HTTP bridge. |
+| `REDIS_URL` | No | None | Connection string for Redis. If omitted, the server falls back to an in-memory cache. |
+| `PORT` | No | `3000` | Port on which the unified server runs. |
+| `INTERNAL_WS_SERVER_URL` | No | `http://localhost:3001` | Address of the WebSocket server's HTTP bridge. |
+| `NODE_ENV` | No | `development` | Environment mode (`development` or `production`). |
+
+---
+
+## 3. Production Deployment (Render)
+
+The platform is designed to be deployed on platform-as-a-service (PaaS) providers. The following configuration defines a production container layout for **Render** (`render.yaml`):
+
+```yaml
+services:
+  # 1. Main Unified Web & WebSocket Service
+  - type: web
+    name: cpm-platform
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cpm-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: cpm-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: EMIT_SECRET
+        generateValue: true
+
+  # 2. Redis Cache Service
+  - type: redis
+    name: cpm-redis
+    plan: free
+    ipAllowList: [] # internal access only
+
+databases:
+  # 3. PostgreSQL Database Instance
+  - name: cpm-postgres
+    plan: free
+    databaseName: cpm_prod
+    user: cpm_owner
+```
+
+### Render Deployment Notes:
+- **Build Environment**: Ensure the build server has a C++17 compatible compiler (e.g., `g++` or `clang`) and `cmake` installed. On Render, these tools are available by default in the standard Node.js build images.
+- **Unified Port Routing**: Render forwards both HTTP and WebSocket traffic through port `80`/`443` to the backend port specified by the `PORT` environment variable (e.g. `10000`).
+- **Prisma Migrations**: Running `prisma migrate deploy` during the build stage ensures schema migrations are applied before the new version of the web application boots, preventing schema-mismatch runtime errors.
