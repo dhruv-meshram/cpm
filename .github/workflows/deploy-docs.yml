@@ -41,5 +41,5 @@ jobs:
         with:
           branch: gh-pages
           folder: website/build
-          target-folder: projects/cpm-planner.html/docs
+          target-folder: projects/cpm-planner/docs
           clean: true

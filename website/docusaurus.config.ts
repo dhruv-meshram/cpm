@@ -13,7 +13,7 @@ const config: Config = {
   },
 
   url: 'https://dhruv-meshram.github.io',
-  baseUrl: '/projects/cpm-planner.html/docs/',
+  baseUrl: '/projects/cpm-planner/docs/',
 
   organizationName: 'dhruv-meshram',
   projectName: 'cpm',
